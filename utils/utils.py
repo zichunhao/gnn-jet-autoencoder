@@ -1,3 +1,4 @@
+import logging
 import os
 import os.path as osp
 from pathlib import Path
@@ -14,7 +15,7 @@ def get_model_folder(args):
 
 
 def get_model_fname(args):
-    model_fname = f"GNNAutoencoder_{args.jet_type}Jet_LatentDim{args.latent_node_size}_LatentMap_{args.latent_map}"
+    model_fname = f"GNNAutoencoder_{args.jet_type}Jet_LatentDim{args.latent_node_size}_LatentMap_{args.latent_map.replace(' ', '')}"
     return model_fname
 
 
