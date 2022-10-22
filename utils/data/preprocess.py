@@ -6,6 +6,7 @@ import jetnet
 import numpy as np
 import torch
 
+NUM_DEV_INSTANCES = 50
 
 def prepare(
     jet_type: str,
@@ -71,8 +72,10 @@ def prepare(
     split_idx = int(len(data) * (1 - test_portion))
     torch.save(p[:split_idx], save_dir / f"{jet_type}_jets_30p.pt")
     torch.save(p[split_idx:], save_dir / f"{jet_type}_jets_30p_test.pt")
+    torch.save(p[:NUM_DEV_INSTANCES], save_dir / f"{jet_type}_jets_30p_small.pt")
     logging.info(
-        f"Data saved in {save_dir} as {jet_type}_jets_30p_all.pt, {jet_type}_jets_30p_train.pt, {jet_type}_jets_30p_test.pt."
+        f"Data saved in {save_dir} as {jet_type}_jets_30p_all.pt, {jet_type}_jets_30p_train.pt, "
+        f"{jet_type}_jets_30p_test.pt, and  {jet_type}_jets_30p_small.pt."
     )
 
     return
