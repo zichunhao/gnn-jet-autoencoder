@@ -57,7 +57,13 @@ def train(
             p4_target = p4_target.to(device=device)
         target_data.append(p4_target.cpu().detach())
 
-        batch_loss = get_loss(args, p4_recons, p4_target.to(args.dtype))
+        batch_loss = get_loss(
+            args, 
+            p4_recons, 
+            p4_target.to(dtype=args.dtype, device=args.device),
+            encoder=encoder,
+            decoder=decoder
+        )
         epoch_total_loss += batch_loss.cpu().item()
 
         # Backward propagation
@@ -274,6 +280,8 @@ def get_loss(
     if args.loss_choice.lower() in ['emd', 'emdloss', 'emd_loss']:
         from utils.losses import EMDLoss
         emdloss = EMDLoss(
+            polar_coord=args.polar_coord,
+            abs_coord=args.abs_coord,
             num_particles=p4_recons.shape[-2],
             device='cuda' if 'cuda' in str(args.device).lower() else 'cpu'
         )
@@ -288,6 +296,8 @@ def get_loss(
         from utils.losses import EMDLoss
         chamferloss = ChamferLoss(loss_norm_choice=args.loss_norm_choice)
         emdloss = EMDLoss(
+            polar_coord=args.polar_coord,
+            abs_coord=args.abs_coord,
             num_particles=p4_recons.shape[-2],
             device='cuda' if 'cuda' in str(args.device).lower() else 'cpu'
         )

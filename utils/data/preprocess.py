@@ -8,6 +8,10 @@ import torch
 
 NUM_DEV_INSTANCES = 50
 
+POLAR_REL = ('polarrel', 'polar_rel')
+POLAR_ABS = ('polar', 'polarabs', 'polar_abs')
+CARTESIAN = ('cartesian', 'cart')
+
 def prepare(
     jet_type: str,
     save_dir: Union[str, Path],
@@ -42,29 +46,42 @@ def prepare(
 
     # particle momenta components (relative coordinates)
     eta_rel, phi_rel, pt_rel, mask = p[..., 0], p[..., 1], p[..., 2], p[..., 3]
+    
+    coord = args.coord.lower().replace(' ', '_').replace('-', '_')
+    
+    if coord in CARTESIAN:
+        # particle momenta components (polar coordinates)
+        pt = pt_rel * Pt.reshape(-1, 1)
+        eta = eta_rel + Eta.reshape(-1, 1)
+        phi = phi_rel + Phi.reshape(-1, 1)
+        phi = ((phi + np.pi) % (2 * np.pi)) - np.pi  # [-pi, pi]
+        mask = torch.from_numpy(mask)
 
-    # particle momenta components (polar coordinates)
-    pt = pt_rel * Pt.reshape(-1, 1)
-    eta = eta_rel + Eta.reshape(-1, 1)
-    phi = phi_rel + Phi.reshape(-1, 1)
-    phi = ((phi + np.pi) % (2 * np.pi)) - np.pi  # [-pi, pi]
-    mask = torch.from_numpy(mask)
-
-    # Cartesian coordinates
-    px = pt * np.cos(phi)
-    py = pt * np.sin(phi)
-    pz = pt * np.sinh(eta)
-    if four_vec:
-        m = np.random.random(eta.shape) * 1e-3  # O(1e-4 GeV)
-        p0 = np.sqrt((pt * np.cosh(eta))**2 + m**2)
-        p4 = torch.from_numpy(np.stack([p0, px, py, pz], axis=-1))
-        p = p4 * mask.unsqueeze(-1)
+        # Cartesian coordinates
+        px = pt * np.cos(phi)
+        py = pt * np.sin(phi)
+        pz = pt * np.sinh(eta)
+        if four_vec:
+            m = np.random.random(eta.shape) * 1e-3  # O(1e-4 GeV)
+            p0 = np.sqrt((pt * np.cosh(eta))**2 + m**2)
+            p4 = torch.from_numpy(np.stack([p0, px, py, pz], axis=-1))
+            p = p4 * mask.unsqueeze(-1)
+        else:
+            p = torch.from_numpy(np.stack([px, py, pz], axis=-1))
+        if not normalize:
+            p = p / 1000  # GeV -> TeV
+        else:
+            p = p / p4.abs().max()
+    elif coord in POLAR_REL:
+        p = torch.from_numpy(np.stack([pt_rel, eta_rel, phi_rel], axis=-1))
+    elif coord in POLAR_ABS:
+        pt = pt_rel * Pt.reshape(-1, 1)
+        eta = eta_rel + Eta.reshape(-1, 1)
+        phi = phi_rel + Phi.reshape(-1, 1)
+        phi = ((phi + np.pi) % (2 * np.pi)) - np.pi  # [-pi, pi]
+        p = torch.from_numpy(np.stack([pt, eta, phi], axis=-1))
     else:
-        p = torch.from_numpy(np.stack([px, py, pz], axis=-1))
-    if not normalize:
-        p = p / 1000  # GeV -> TeV
-    else:
-        p = p / p4.abs().max()
+        raise ValueError(f"Invalid coordinate system: {args.coord}")
 
     torch.save(p, save_dir / f"{jet_type}_jets_30p_all.pt")
 
@@ -105,14 +122,20 @@ if __name__ == "__main__":
         help="Test portion of the data."
     )
     parser.add_argument(
+        '--coord', type='str', default='cartesian',
+        help="Coordinate system to use for the data. "
+        "Options: ('cartesian', 'polar', 'polar_rel')."
+    )
+    parser.add_argument(
         '--normalize',
         action='store_true', default=False,
-        help="Normalize the data by the global maximum (of the absolute value)."
+        help="If --coord is Cartesian, normalize the data by the global maximum (of the absolute value)."
     )
     parser.add_argument(
         '--four-vec',
         action='store_true', default=False,
-        help="Use four-vector particle features."
+        help="If --coord is Cartesian, use four-vector particle features. "
+        "Only valid for 'cartesian' coordinate system."
     )
     
     args = parser.parse_args()
