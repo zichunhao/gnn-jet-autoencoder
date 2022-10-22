@@ -2,15 +2,13 @@ import argparse
 import numpy as np
 import torch
 
-
-def setup_argparse():
-    parser = argparse.ArgumentParser(description='HLS4ML Graph autoencoder options')
-
-    ######################################### Data options #########################################
-    parser.add_argument('-j', '--jet-type', type=str, required=True, metavar='',
-                        help="Jet type to train. Options: ('g', 'q', 't', 'w', 'z').")
-    parser.add_argument('--file-path', type=str, metavar='',
-                        help='Path of the data.')
+def parse_data_settings(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
+    parser.add_argument('-j', '--jet-type', type=str, default='qcd',
+                        help="Jet type to train. Options: ('qcd', 'g', 'q', 't', 'w', 'z').")
+    parser.add_argument('--data-paths', type=str, nargs='+', 
+                        help='Paths of the data.')
+    parser.add_argument('--test-data-paths', type=str, nargs='+', 
+                        help='Paths of the test data.')
     parser.add_argument('--unit', type=str, default='TeV',
                         help="The unit of momenta. Choices: ('GeV', 'TeV'). Default: TeV. ")
     parser.add_argument('--abs-coord', type=get_bool, default=True, metavar='',
@@ -19,20 +17,19 @@ def setup_argparse():
                         help='Whether the data is in polar coordinates (pt, eta, phi). False when Cartesian coordinates are used.')
     parser.add_argument('--normalized', type=get_bool, default=False, metavar='',
                         help='Whether the data is normalized. False when unnormalized data is used.')
-    parser.add_argument('--train-fraction', type=float, default=10,
+    parser.add_argument('--train-fraction', type=float, default=0.65, metavar='',
                         help='The fraction (or number) of data used for training.')
-    parser.add_argument('--num-valid', type=int, default=10,
-                        help='The number of data used for validation. Used only if train-fraction is int (for test runs).')
+    return parser
 
-    ######################################## Model options ########################################
+def parse_model_settings(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     parser.add_argument('--num-jet-particles', type=int, default=30, metavar='',
                         help='Number of particles per jet (batch) in the input. Default: 30 for the hls4ml 30p data.')
     parser.add_argument('--vec-dims', type=int, default=3, metavar='',
                         help='Dimension of vectors. Default: 4 for 4-vectors.')
     parser.add_argument('--latent-node-size', type=int, default=20, metavar='',
                         help='Dimension of latent vectors. If --latent-map is "local" or "node", this stands for the size of feature vector per node.')
-
-    # encoder
+    
+     # encoder
     parser.add_argument('--encoder-edge-sizes', type=get_list_of_list,
                         default=[[32, 128, 64, 16]], metavar='',
                         help="Edge convolution layer width in each message passing step in encoder. "
@@ -49,13 +46,14 @@ def setup_argparse():
                         help='Dropout value for edge features in encoder.')
     parser.add_argument('--encoder-alphas', type=float, default=0.2, metavar='',
                         help='Alpha values for the leaky relu layers in encoder.')
-    parser.add_argument('--encoder-batch-norm', type=get_bool, default=True, metavar='',
-                        help='Whether to include batch normalizations in encoder. Default: True.')
-    parser.add_argument('--encoder-metric', type=get_bool, default=True, metavar='',
-                        help="The metric for distance in encoder. Options: ('minkoskian', 'cartesian'). Default: 'cartesian'.")
+    parser.add_argument('--encoder-batch-norm', action='store_true', default=False, 
+                        help='Call to include batch normalizations in encoder. Default: True.')
+    parser.add_argument('--encoder-metric', type=str, default='euclidean', metavar='',
+                        help="The metric for distance in encoder. Options: ('minkoskian', 'euclidean'). Default: 'euclidean'.")
 
     parser.add_argument('--latent-map', type=str, default='mean', metavar='',
-                        help="Method to map from GNN to latent space. Options: ('mean', 'mix', 'local', 'node'). Default: 'mean'.")
+                        help="Method to map from GNN to latent space. Options: ('mean', 'max', 'min', 'local mix', 'global mix'). Default: 'mean'.")
+    
     # decoder
     parser.add_argument('--decoder-edge-sizes', type=get_list_of_list,
                         default=[[32, 128, 64, 16]], metavar='',
@@ -72,17 +70,18 @@ def setup_argparse():
                         help='Dropout value for edge features in decoder.')
     parser.add_argument('--decoder-alphas', type=float, default=0.2, metavar='',
                         help='Alpha value for the leaky relu layers in decoder.')
-    parser.add_argument('--decoder-batch-norm', type=get_bool, default=True, metavar='',
+    parser.add_argument('--decoder-batch-norm', action='store_true', default=False,
                         help='Whether to include batch normalizations in decoder. Default: True.')
-    parser.add_argument('--decoder-metric', type=get_bool, default=True, metavar='',
+    parser.add_argument('--decoder-metric', type=str, default='euclidean', metavar='',
                         help="The metric for distance in decoder. Options: ('minkoskian', 'cartesian'). Default: 'cartesian'.")
+    return parser
 
-    ####################################### Training options #######################################
+def parse_training_settings(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     parser.add_argument('--device', type=get_device, default=get_device('-1'), metavar='',
                         help="Device to which the model is initialized. Options: ('gpu', 'cpu', 'cuda', '-1')."
                         "Default: -1, which means deciding device based on whether gpu is available.")
-    parser.add_argument('--dtype', type=get_dtype, default=torch.float, metavar='',
-                        help="Data type to which the model is initialized. Options: ('float', 'float64', 'double'). Default: torch.float")
+    parser.add_argument('--dtype', type=get_dtype, default=torch.float64, metavar='',
+                        help="Data type to which the model is initialized. Options: ('float', 'float64', 'double'). Default: torch.float64")
     parser.add_argument('--lr', type=float, default=1e-5, metavar='',
                         help='Learning rate of the backpropagation.')
     parser.add_argument('--optimizer', type=str, default="adam", metavar='',
@@ -119,22 +118,28 @@ def setup_argparse():
                         help='Path of the trained model to load.')
     parser.add_argument('--load-epoch', type=int, default=None, metavar='',
                         help='Epoch number of the trained model to load.')
+    return parser
 
-    ################################### Model evaluation options ###################################
+def parse_eval_settings(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     parser.add_argument('--plot-freq', type=int, default=100, metavar='',
                         help='How frequent to plot. Used when --loss-choice is not EMD. Default: 100.')
+    parser.add_argument('--plot-start-epoch', type=int, default=-1, metavar='',
+                        help='The epoch to start plotting. Default: -1.')
     parser.add_argument('--cutoff', type=float, default=1e-7, metavar='',
                         help='Cutoff value of (3-)momenta magnitude to be included in the historgram. Default: 1e-7.')
     parser.add_argument('--fill', default=False, action='store_true',
                         help='Whether to plot filled histograms as well. True only if called in the command line.')
 
-    parser.add_argument('--jet-image-npix', type=int, default=24,
+    # jet images
+    parser.add_argument('--jet-image-npix', type=int, default=40,
                         help='The number of pixels for the jet image')
+    parser.add_argument('--jet-image-maxR', type=float, default=0.5,
+                        help='The maxR of the jet image')
     parser.add_argument('--jet-image-vmin', type=float, default=1e-10,
                         help='vmin for LogNorm')
     parser.add_argument('--num-jet-images', type=int, default=15,
                         help='Number of one-to-one jet images to plot.')
-    
+
     # reconstruction ranges
     parser.add_argument('--custom-particle-recons-ranges', default=False, action='store_true',
                         help='Whether to manually set the ranges of particle reconstruction errors. '
@@ -156,7 +161,7 @@ def setup_argparse():
                         help='xmin of histogram for reconstructed padded particless in polar coordinates (pt, eta, phi).')
     parser.add_argument('--particle-padded-recons-max-polar', nargs="+", type=float, default=[100, 1, np.pi], metavar='',
                         help='xmax of histogram for reconstructed padded particless in polar coordinates.')
-    
+
     parser.add_argument('--custom-jet-recons-ranges', default=False, action='store_true',
                         help='Whether to manually set the ranges of jet reconstruction errors. '
                         'Call --custom-jet-recons-ranges to set true.')
@@ -168,12 +173,9 @@ def setup_argparse():
                         help='xmin of histogram for jet reconstruction relative errors in polar coordinates (pt, eta, phi).')
     parser.add_argument('--jet-rel-err-max-polar', nargs="+", type=float, default=[1, 1, 1, 1], metavar='',
                         help='xmax of histogram for jet reconstruction relative errors in polar coordinates (pt, eta, phi).')
-
-
-    args = parser.parse_args()
-
-    return args
-
+    
+    
+    return parser
 
 def get_bool(arg):
     """

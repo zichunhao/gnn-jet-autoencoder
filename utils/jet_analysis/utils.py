@@ -1,5 +1,7 @@
+from typing import Tuple, Union
 import torch
 import numpy as np
+from scipy import stats
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 NUM_BINS = 81  # Number of bins for all histograms
@@ -11,7 +13,7 @@ def get_magnitude(p, gpu=True):
     Parameters
     ----------
     p : `numpy.ndarray` or `torch.Tensor`
-        The 4-momentum.
+        The 3- or 4-momentum.
 
     Returns
     -------
@@ -20,19 +22,35 @@ def get_magnitude(p, gpu=True):
     Raises
     ------
     ValueError
-        If p is not of type numpy.ndarray or torch.Tensor.
+        - If p is not of type numpy.ndarray or torch.Tensor.
+        - If p is not a 3- or 4-vector.
     """
     if isinstance(p, np.ndarray):
-        return np.sqrt(np.sum(np.power(p, 2)[..., 1:], axis=-1))
+        if p.shape[-1] == 3:
+            return np.linalg.norm(p, axis=-1)
+        elif p.shape[-1] == 4:
+            return np.linalg.norm(p[..., 1:], axis=-1)
+        else:
+            raise ValueError(
+                f'p must be 3- or 4-vector. Found: {p.shape[-1]=}.')
+
     elif isinstance(p, torch.Tensor):
         if gpu:
             p = p.to(device=DEVICE)
-        return torch.sqrt(torch.sum(torch.pow(p, 2)[..., 1:], dim=-1)).detach().cpu()
+        if p.shape[-1] == 3:
+            return torch.norm(p, dim=-1)
+        elif p.shape[-1] == 4:
+            return torch.norm(p[..., 1:], dim=-1)
+        else:
+            raise ValueError(
+                f'p must be 3- or 4-vector. Found: {p.shape[-1]=}.')
+
     else:
-        raise ValueError(f"The input must be numpy.ndarray or torch.Tensor. Found: {type(p)}.")
+        raise ValueError(
+            f"The input must be numpy.ndarray or torch.Tensor. Found: {type(p)}.")
 
 
-def get_p_cartesian(jets, cutoff=1e-6):
+def get_p_cartesian(jets, cutoff=1e-6, return_arr: bool = False):
     """Get (px, py, pz) from the jet data and filter out values that are too small.
 
     Parameters
@@ -44,41 +62,52 @@ def get_p_cartesian(jets, cutoff=1e-6):
 
     Returns
     -------
-    A tuple (px, py, pz). Each is a numpy.ndarray.
+    A tuple (px, py, pz). Each is a numpy.ndarray or a numpy.ndarray of shape (num_particles, 3).
 
     Raises
     ------
     ValueError
         If p is not of type numpy.ndarray or torch.Tensor.
     """
+    if jets.shape[-1] != 4:
+        raise ValueError(f"Jet must be a 4-vector. Found: {jets.shape[-1]=}.")
+
     if isinstance(jets, np.ndarray):
         jets = np.copy(jets).reshape(-1, 4)
         px = jets[:, 1].copy()
         py = jets[:, 2].copy()
         pz = jets[:, 3].copy()
-        p = get_magnitude(jets)  # |p| of 3-momenta
-        mask = (p > cutoff)
-        if cutoff > 0:
-            px = px[mask]
-            py = py[mask]
-            pz = pz[mask]
+
     elif isinstance(jets, torch.Tensor):
         jets = torch.clone(jets).reshape(-1, 4)
         px = torch.clone(jets[:, 1]).detach().cpu().numpy()
         py = torch.clone(jets[:, 2]).detach().cpu().numpy()
         pz = torch.clone(jets[:, 3]).detach().cpu().numpy()
-        p = get_magnitude(jets)  # |p| of 3-momenta
-        if cutoff > 0:
-            px = px[mask]
-            py = py[mask]
-            pz = pz[mask]
-    else:
-        raise ValueError(f"The input must be numpy.ndarray or torch.Tensor. Found: {type(jets)}.")
 
+    else:
+        raise ValueError(
+            f"The input must be numpy.ndarray or torch.Tensor. Found: {type(jets)}."
+        )
+
+    if cutoff > 0:
+        p = get_magnitude(jets)  # |p| of 3-momenta
+        mask = (p > cutoff)
+        px = px[mask]
+        py = py[mask]
+        pz = pz[mask]
+
+    if return_arr:
+        return np.stack((px, py, pz), axis=-1)
     return px, py, pz
 
 
-def get_p_polar(p4, cutoff=1e-6, eps=1e-12, gpu=True):
+def get_p_polar(
+    p4: torch.Tensor,
+    cutoff: float = 1e-6,
+    eps: float = 1e-12,
+    gpu: float = True,
+    return_arr: float = False
+) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """
     Get (pt, eta, phi) from the jet data.
 
@@ -111,8 +140,15 @@ def get_p_polar(p4, cutoff=1e-6, eps=1e-12, gpu=True):
             pt = pt[mask]
             eta = eta[mask]
             phi = phi[mask]
+    else:
+        raise TypeError(
+            f"The input must be numpy.ndarray or torch.Tensor. Found: {type(p4)}.")
+
+    if return_arr:
+        return np.stack((pt, eta, phi), axis=-1)
 
     return pt, eta, phi
+
 
 def get_p4_cartesian_from_polar(p: torch.Tensor) -> torch.Tensor:
     '''
@@ -127,21 +163,18 @@ def get_p4_cartesian_from_polar(p: torch.Tensor) -> torch.Tensor:
         E = (p[..., pt_idx] * torch.cosh(p[..., eta_idx])).unsqueeze(-1)
     else:
         raise ValueError(f'Invalid shape of feature dimension: {p.shape[-1]}.')
-    
+
     px = (p[..., pt_idx] * torch.cos(p[..., phi_idx])).unsqueeze(-1)
     py = (p[..., pt_idx] * torch.sin(p[..., phi_idx])).unsqueeze(-1)
     pz = (p[..., pt_idx] * torch.sinh(p[..., eta_idx])).unsqueeze(-1)
-    
-    return torch.cat((E, px, py, pz), dim=-1)
-    
 
-def get_p4(p3):
-    '''Convert particle p3 to p4'''
-    p0 = torch.norm(p3, dim=-1, keepdim=True)
-    return torch.cat((p0, p3), dim=-1)
+    return torch.stack((E, px, py, pz), dim=-1)
 
 
-def get_p_polar_tensor(p, eps=1e-16):
+def get_p_polar_tensor(
+    p: torch.Tensor,
+    eps: float = 1e-16
+) -> torch.Tensor:
     """(E, px, py, pz) -> (pt, eta, phi)"""
     if p.shape[-1] == 4:
         px = p[..., 1]
@@ -152,7 +185,8 @@ def get_p_polar_tensor(p, eps=1e-16):
         py = p[..., 1]
         pz = p[..., 2]
     else:
-        raise ValueError(f'Invalid error. p.shape[-1] should be either 3 or 4. Found: {p.shape[-1]}.')
+        raise ValueError(
+            f'Invalid error. p.shape[-1] should be either 3 or 4. Found: {p.shape[-1]}.')
 
     pt = torch.sqrt(px ** 2 + py ** 2)
     try:
@@ -164,11 +198,42 @@ def get_p_polar_tensor(p, eps=1e-16):
     return torch.stack((pt, eta, phi), dim=-1)
 
 
-def arcsinh(z):
+def get_p4_polar_tensor(
+    p: torch.Tensor,
+    eps: float = 1e-16
+) -> torch.Tensor:
+    """(E, px, py, pz) -> (pt, eta, phi)"""
+    if p.shape[-1] == 4:
+        E, px, py, pz = p.unbind(dim=-1)
+    elif p.shape[-1] == 3:
+        px, py, pz = p.unbind(dim=-1)
+    else:
+        raise ValueError(
+            f'Invalid error. p.shape[-1] should be either 3 or 4. Found: {p.shape[-1]}.')
+
+    pt = torch.sqrt(px ** 2 + py ** 2)
+    try:
+        eta = torch.asinh(pz / (pt + eps))
+    except AttributeError:
+        eta = arcsinh(pz / pt)
+    phi = torch.atan2(py + eps, px)
+
+    return torch.stack((pt, eta, phi), dim=-1)
+
+
+def arcsinh(z: torch.Tensor) -> torch.Tensor:
+    '''Self defined arcsinh function if torch is not up to date.'''
     return torch.log(z + torch.sqrt(1 + torch.pow(z, 2)))
 
 
-def get_jet_feature_cartesian(p4, gpu=True):
+def get_jet_feature_cartesian(
+    p4: Union[np.ndarray, torch.Tensor],
+    gpu: bool = True,
+    return_arr: bool = False
+) -> Union[np.ndarray,
+           Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+           torch.Tensor,
+           Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]]:
     """
     Get jet (m, pt, eta, phi) from the jet data.
 
@@ -178,7 +243,10 @@ def get_jet_feature_cartesian(p4, gpu=True):
         The jet data, with shape (num_particles, 4), which means all jets are merged together.
     gpu : bool, optional
         Whether to use gpu whenever possible.
-        Default: True
+        Default to True.
+    return: book, optional
+        Whether to return the feature as a numpy.ndarray or a torch.Tensor.
+        Default to True.
 
     Raises
     ------
@@ -193,22 +261,37 @@ def get_jet_feature_cartesian(p4, gpu=True):
         jet_px = jet_p4[:, 1]
         jet_py = jet_p4[:, 2]
         jet_pz = jet_p4[:, 3]
+        if return_arr:
+            return np.stack((jet_mass, jet_px, jet_py, jet_pz), axis=-1)
+
     elif isinstance(p4, torch.Tensor):  # torch.Tensor
         if gpu:
             p4 = p4.to(device=DEVICE)
         jet_p4 = torch.sum(p4, axis=-2)
-        msq = jet_p4[:, 0] ** 2 - torch.sum(torch.pow(jet_p4, 2)[:, 1:], axis=-1)
-        jet_mass = (torch.sqrt(torch.abs(msq)) * torch.sign(msq)).detach().cpu()
+        msq = jet_p4[:, 0] ** 2 - \
+            torch.sum(torch.pow(jet_p4, 2)[:, 1:], axis=-1)
+        jet_mass = (torch.sqrt(torch.abs(msq)) *
+                    torch.sign(msq)).detach().cpu()
         jet_px = jet_p4[:, 1].detach().cpu()
         jet_py = jet_p4[:, 2].detach().cpu()
         jet_pz = jet_p4[:, 3].detach().cpu()
+        if return_arr:
+            return torch.stack((jet_mass, jet_px, jet_py, jet_pz), dim=-1)
+
     else:
-        raise ValueError(f"The input must be numpy.ndarray or torch.Tensor. Found: {type(p4)}.")
+        raise ValueError(
+            f"The input must be numpy.ndarray or torch.Tensor. Found: {type(p4)}.")
 
     return jet_mass, jet_px, jet_py, jet_pz
 
 
-def get_jet_feature_polar(p4, gpu=True, eps=1e-16):
+def get_jet_feature_polar(
+    p4: Union[np.ndarray, torch.Tensor],
+    gpu: bool = True,
+    eps: float = 1e-16,
+    return_arr: bool = False
+) -> Union[np.ndarray,
+           Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
     """
     Get jet (m, pt, eta, phi) from the jet data.
 
@@ -232,7 +315,9 @@ def get_jet_feature_polar(p4, gpu=True, eps=1e-16):
         pt = np.sqrt(px ** 2 + py ** 2)
         eta = np.arcsinh(pz / (pt + eps))
         phi = np.arctan2(py, px)
-        return m, pt, eta, phi
+        if return_arr:
+            return np.stack((m, pt, eta, phi), axis=-1)
+
     elif isinstance(p4, torch.Tensor):
         if gpu:
             p4 = p4.to(device=DEVICE)
@@ -242,9 +327,18 @@ def get_jet_feature_polar(p4, gpu=True, eps=1e-16):
         except AttributeError:
             eta = arcsinh(pz / (pt + eps))
         phi = torch.atan2(py, px)
-        return m.detach().cpu().numpy(), pt.detach().cpu().numpy(), eta.detach().cpu().numpy(), phi.detach().cpu().numpy()
+        m = m.detach().cpu().numpy()
+        pt = pt.detach().cpu().numpy()
+        eta = eta.detach().cpu().numpy()
+        phi = phi.detach().cpu().numpy()
+        if return_arr:
+            return np.stack((m, pt, eta, phi), axis=-1)
+
     else:
-        raise ValueError(f"The input must be numpy.ndarray or torch.Tensor. Found: {type(p4)}.")
+        raise ValueError(
+            f"The input must be numpy.ndarray or torch.Tensor. Found: {type(p4)}.")
+
+    return m, pt, eta, phi
 
 
 def find_fwhm(err, bins):
@@ -261,22 +355,62 @@ def find_fwhm(err, bins):
 
 
 def get_stats(res, bins):
-    return {'mean': np.mean(res), 'FWHM': find_fwhm(res, bins)}
+    try:
+        max_val = np.max(res)
+    except ValueError:
+        max_val = None
+
+    try:
+        min_val = np.min(res)
+    except ValueError:
+        min_val = None
+
+    try:
+        abs_min = np.min(np.abs(res))
+    except ValueError:
+        abs_min = None
+
+    mean = np.mean(res)
+    mean = None if np.isnan(mean) else mean
+
+    std_dev = np.std(res)
+    std_dev = None if np.isnan(std_dev) else std_dev
+
+    skew = stats.skew(res)
+    skew = None if np.isnan(skew) else skew
+
+    kurtosis = stats.kurtosis(res)
+    kurtosis = None if np.isnan(kurtosis) else kurtosis
+
+    return {
+        'mean': mean,
+        'max': max_val,
+        'min': min_val,
+        'abs_min': abs_min,
+        'std_dev': std_dev,
+        'skew': skew,
+        'kurtosis': kurtosis,
+        'FWHM': find_fwhm(res, bins)
+    }
 
 
-def get_jet_name(args):
-    if args.jet_type == 'g':
+def get_jet_name(jet_type):
+    if jet_type == 'g':
         jet_name = 'gluon'
-    elif args.jet_type == 'q':
+    elif jet_type == 'q':
         jet_name = 'light quark'
-    elif args.jet_type == 't':
+    elif jet_type == 't':
         jet_name = 'top quark'
-    elif args.jet_type == 'w':
+    elif jet_type == 'w':
         jet_name = 'W boson'
-    elif args.jet_type == 'z':
+    elif jet_type == 'z':
         jet_name = 'Z boson'
+    elif jet_type.lower() == 'qcd':
+        jet_name = 'QCD'
     else:
-        jet_name = args.jet_type
+        import logging
+        logging.warning(f"Unknown jet type: {jet_type}.")
+        jet_name = jet_type
     return jet_name
 
 

@@ -1,20 +1,35 @@
+from argparse import Namespace
+from pathlib import Path
+from typing import Optional, Tuple, Union
 import torch.nn as nn
 import torch
 import numpy as np
 import math
 import os.path as osp
 import time
-from utils.utils import make_dir, save_data, plot_eval_results, eps
+from models import Decoder, Encoder
+from utils.utils import make_dir, save_data, plot_eval_results
+from utils.const import EPS
 from utils.jet_analysis import plot_p
 import logging
 from tqdm import tqdm
+from torch.utils.data import DataLoader
+from torch.optim import Optimizer
 
 BLOW_UP_THRESHOLD = 1e8
-# The percentage of total epochs after which the thus-far best result is plotted
-PLOT_START_PERCENTAGE = 0.05
 
-def train(args, loader, encoder, decoder, optimizer_encoder, optimizer_decoder,
-          epoch, outpath, is_train=True, device=None):
+def train(
+    args: Namespace, 
+    loader: DataLoader, 
+    encoder: Encoder, 
+    decoder: Decoder, 
+    optimizer_encoder: Optimizer, 
+    optimizer_decoder: Optimizer,
+    epoch: int, 
+    outpath: Union[Path, str], 
+    is_train: bool = True, 
+    device: Optional[torch.device] = None
+):
 
     if is_train:
         assert (optimizer_encoder is not None) and (optimizer_decoder is not None), "Please specify the optimizers."
@@ -27,22 +42,22 @@ def train(args, loader, encoder, decoder, optimizer_encoder, optimizer_decoder,
         decoder.eval()
 
     target_data = []
-    generated_data = []
+    recons_data = []
     epoch_total_loss = 0
 
     for i, data in enumerate(tqdm(loader)):
         p4_target = data.to(args.dtype)
-        p4_gen = decoder(
+        p4_recons = decoder(
             encoder(p4_target, metric=args.encoder_metric),
             metric=args.decoder_metric
         )
-        generated_data.append(p4_gen.cpu().detach())
+        recons_data.append(p4_recons.cpu().detach())
 
         if device is not None:
             p4_target = p4_target.to(device=device)
         target_data.append(p4_target.cpu().detach())
 
-        batch_loss = get_loss(args, p4_gen, p4_target.to(args.dtype))
+        batch_loss = get_loss(args, p4_recons, p4_target.to(args.dtype))
         epoch_total_loss += batch_loss.cpu().item()
 
         # Backward propagation
@@ -63,7 +78,7 @@ def train(args, loader, encoder, decoder, optimizer_encoder, optimizer_decoder,
                     osp.join(decoder_weight_path, f"epoch_{epoch+1}_decoder_weights.pth")
                 )
 
-    generated_data = torch.cat(generated_data, dim=0)
+    recons_data = torch.cat(recons_data, dim=0)
     target_data = torch.cat(target_data, dim=0)
 
     epoch_avg_loss = epoch_total_loss / len(loader)
@@ -73,20 +88,39 @@ def train(args, loader, encoder, decoder, optimizer_encoder, optimizer_decoder,
         torch.save(encoder.state_dict(), osp.join(encoder_weight_path, f"epoch_{epoch}_encoder_weights.pth"))
         torch.save(decoder.state_dict(), osp.join(decoder_weight_path, f"epoch_{epoch}_decoder_weights.pth"))
 
-    return epoch_avg_loss, generated_data, target_data
+    return epoch_avg_loss, recons_data, target_data
 
 
 @torch.no_grad()
-def validate(args, loader, encoder, decoder, epoch, outpath, device):
+def validate(
+    args: Namespace, 
+    loader: DataLoader, 
+    encoder: Encoder, 
+    decoder: Decoder, 
+    epoch: int, 
+    outpath: Union[Path, str], 
+    device: Optional[torch.device] = None
+) -> Tuple[float, torch.Tensor, torch.Tensor]:
     with torch.no_grad():
-        epoch_avg_loss, generated_data, target_data = train(args, loader=loader, encoder=encoder, decoder=decoder,
-                                                            optimizer_encoder=None, optimizer_decoder=None,
-                                                            epoch=epoch, outpath=outpath, is_train=False, device=device)
-    return epoch_avg_loss, generated_data, target_data
+        epoch_avg_loss, recons_data, target_data = train(
+            args, loader=loader, encoder=encoder, decoder=decoder,
+            optimizer_encoder=None, optimizer_decoder=None,
+            epoch=epoch, outpath=outpath, is_train=False, device=device
+        )
+    return epoch_avg_loss, recons_data, target_data
 
 
-def train_loop(args, train_loader, valid_loader, encoder, decoder,
-               optimizer_encoder, optimizer_decoder, outpath, device=None):
+def train_loop(
+    args: Namespace, 
+    train_loader: DataLoader, 
+    valid_loader: DataLoader, 
+    encoder: Encoder, 
+    decoder: Decoder,
+    optimizer_encoder: Optimizer, 
+    optimizer_decoder: Optimizer, 
+    outpath: Union[Path, str],
+    device: torch.device = None
+) -> int:
 
     if device is None:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -101,23 +135,39 @@ def train_loop(args, train_loader, valid_loader, encoder, decoder,
     best_epoch = 1
     num_stale_epochs = 0
     best_loss = math.inf
+    best_epoch_dict = {"best_epoch": best_epoch, "best_loss": best_loss}
+    
+    if args.load_to_train:
+        try:
+            best_epoch_dict = torch.load(osp.join(outpath, "trained_info.pt"))
+            best_epoch = best_epoch_dict["best_epoch"]
+            best_loss = best_epoch_dict["best_loss"]
+        except FileNotFoundError:
+            pass
 
-    outpath_train_jet_plots = make_dir(osp.join(outpath, 'model_evaluations/jet_plots/train'))
-    outpath_valid_jet_plots = make_dir(osp.join(outpath, 'model_evaluations/jet_plots/valid'))
+    outpath_train_jet_plots = make_dir(osp.join(outpath, 'jet_plots/train'))
+    outpath_valid_jet_plots = make_dir(osp.join(outpath, 'jet_plots/valid'))
 
     total_epoch = args.num_epochs if not args.load_to_train else args.num_epochs + args.load_epoch
+    
+    path_eval = Path(outpath) / 'model_evaluations'
+    path_eval.mkdir(exist_ok=True, parents=True)
 
     for ep in range(args.num_epochs):
         epoch = args.load_epoch + ep if args.load_to_train else ep
 
         # Training
         start = time.time()
-        train_avg_loss, train_gen, train_target = train(args, train_loader, encoder, decoder,
-                                                        optimizer_encoder, optimizer_decoder, epoch,
-                                                        outpath, is_train=True, device=device)
+        train_avg_loss, train_recons, train_target = train(
+            args, train_loader, encoder, decoder,
+            optimizer_encoder, optimizer_decoder, epoch,
+            outpath, is_train=True, device=device
+        )
         # Validation
-        valid_avg_loss, valid_gen, valid_target = validate(args, valid_loader, encoder, decoder,
-                                                           epoch, outpath, device=device)
+        valid_avg_loss, valid_recons, valid_target = validate(
+            args, valid_loader, encoder, decoder,
+            epoch, outpath, device=device
+        )
 
         if (abs(valid_avg_loss) < best_loss):
             best_loss = valid_avg_loss
@@ -131,6 +181,8 @@ def train_loop(args, train_loader, valid_loader, encoder, decoder,
                 decoder.state_dict(),
                 osp.join(outpath, "weights_decoder/best_decoder_weights.pth")
             )
+            best_epoch_dict = {"best_epoch": best_epoch, "best_loss": best_loss}
+            torch.save(best_epoch_dict, osp.join(outpath, "trained_info.pt"))
         else:
             num_stale_epochs += 1
 
@@ -139,36 +191,42 @@ def train_loop(args, train_loader, valid_loader, encoder, decoder,
         if (args.abs_coord and (args.unit.lower() == 'tev')) and not args.normalized:
             # Convert to GeV for plotting
             train_target *= 1000
-            train_gen *= 1000
+            train_recons *= 1000
             valid_target *= 1000
-            valid_gen *= 1000
+            valid_recons *= 1000
 
+        # EMD: Plot every epoch because model trains slowly with the EMD loss.
+        # Others (MSE and chamfer losses): Plot every args.plot_freq epoch or the best epoch.
+        is_emd = 'emd' in args.loss_choice.lower()
         if args.plot_freq > 0:
-            if (epoch >= int(args.num_epochs * PLOT_START_PERCENTAGE)):
+            if (epoch >= args.plot_start_epoch):
                 plot_epoch = ((epoch + 1) % args.plot_freq == 0) or (num_stale_epochs == 0)
             else:
-                plot_epoch = ((epoch + 1) % args.plot_freq == 0)
+                plot_epoch = False
         else:
             plot_epoch = (num_stale_epochs == 0)
-
-        is_emd = 'emd' in args.loss_choice.lower()
         to_plot = is_emd or plot_epoch
+
         if to_plot:
-            for target, gen, dir in zip((train_target, valid_target),
-                                        (train_gen, valid_gen),
-                                        (outpath_train_jet_plots, outpath_valid_jet_plots)):
+            for target, recons, path in zip(
+                (train_target, valid_target),
+                (train_recons, valid_recons),
+                (outpath_train_jet_plots, outpath_valid_jet_plots)
+            ):
                 logging.debug("plotting")
-                plot_p(args, p4_target=target, p4_gen=gen, save_dir=dir, epoch=epoch, show=False)
+                plot_p(args, p4_target=target, p4_recons=recons, save_dir=path, epoch=epoch, show=False)
 
         dts.append(dt)
         train_avg_losses.append(train_avg_loss)
         valid_avg_losses.append(valid_avg_loss)
-        np.savetxt(osp.join(outpath, 'model_evaluations/losses_training.txt'), train_avg_losses)
-        np.savetxt(osp.join(outpath, 'model_evaluations/losses_validation.txt'), valid_avg_losses)
-        np.savetxt(osp.join(outpath, 'model_evaluations/dts.txt'), dts)
+        np.savetxt(path_eval / 'losses_training.txt', train_avg_losses)
+        np.savetxt(path_eval / 'losses_validation.txt', valid_avg_losses)
+        np.savetxt(path_eval / 'dts.txt', dts)
 
-        logging.info(f'epoch={epoch+1}/{total_epoch}, train_loss={train_avg_loss}, valid_loss={valid_avg_loss}, '
-                     f'{dt=}s, {num_stale_epochs=}, {best_epoch=}')
+        logging.info(
+            f'epoch={epoch+1}/{total_epoch}, train_loss={train_avg_loss}, valid_loss={valid_avg_loss}, '
+            f'{dt=}s, {num_stale_epochs=}, {best_epoch=}'
+        )
 
         if args.plot_freq > 0:
             if (epoch > 0) and (epoch % int(args.plot_freq) == 0):
@@ -198,24 +256,28 @@ def train_loop(args, train_loader, valid_loader, encoder, decoder,
     plot_eval_results(args, data=dts, data_name='Time durations',
                       outpath=outpath)
 
-    return train_avg_losses, valid_avg_losses, dts
+    return best_epoch
 
 
-def get_loss(args, p4_gen, p4_target):
+def get_loss(
+    args: Namespace, 
+    p4_recons: torch.Tensor, 
+    p4_target: torch.Tensor
+) -> torch.Tensor:
     if args.loss_choice.lower() in ['chamfer', 'chamferloss', 'chamfer_loss']:
         from utils.losses import ChamferLoss
         chamferloss = ChamferLoss(loss_norm_choice=args.loss_norm_choice)
-        batch_loss = chamferloss(p4_gen, p4_target, jet_features_weight=args.chamfer_jet_features_weight)  # output, target
+        batch_loss = chamferloss(p4_recons, p4_target, jet_features_weight=args.chamfer_jet_features_weight)  # output, target
         return batch_loss
 
     if args.loss_choice.lower() in ['emd', 'emdloss', 'emd_loss']:
         from utils.losses import emd_loss
-        batch_loss = emd_loss(p4_target, p4_gen, eps=eps(args), device=args.device)  # true, output
+        batch_loss = emd_loss(p4_target, p4_recons, eps=EPS, device=args.device)  # true, output
         return batch_loss
 
     if args.loss_choice.lower() in ['mse', 'mseloss', 'mse_loss']:
         mseloss = nn.MSELoss()
-        batch_loss = mseloss(p4_gen, p4_target)  # output, target
+        batch_loss = mseloss(p4_recons, p4_target)  # output, target
         return batch_loss
 
     if args.loss_choice.lower() in ['hybrid', 'combined', 'mix']:
@@ -223,8 +285,8 @@ def get_loss(args, p4_gen, p4_target):
         from utils.losses import emd_loss
         chamferloss = ChamferLoss(loss_norm_choice=args.loss_norm_choice)
         batch_loss = args.chamfer_loss_weight * chamferloss(
-            p4_gen, p4_target, jet_features_weight=args.chamfer_jet_features_weight
+            p4_recons, p4_target, jet_features_weight=args.chamfer_jet_features_weight
         ) + emd_loss(
-            p4_target, p4_gen, eps=eps(args), device=args.device
+            p4_target, p4_recons, eps=EPS, device=args.device
         )
         return batch_loss

@@ -1,34 +1,26 @@
 import os
 import os.path as osp
+from pathlib import Path
 import torch
 import glob
 import matplotlib.pyplot as plt
 
 
-def create_model_folder(args):
+def get_model_folder(args):
     make_dir(args.save_dir)
-    return make_dir(osp.join(args.save_dir, get_model_fname(args)))
+    path = Path(args.save_dir) / get_model_fname(args)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def get_model_fname(args):
-    model_fname = f"StandardAutoencoder_{args.jet_type}Jet_LatentDim{args.latent_node_size}_LatentMap_{args.latent_map}"
+    model_fname = f"GNNAutoencoder_{args.jet_type}Jet_LatentDim{args.latent_node_size}_LatentMap_{args.latent_map}"
     return model_fname
 
 
 def make_dir(path):
     os.makedirs(path, exist_ok=True)
     return path
-
-
-def eps(args):
-    if args.dtype in [torch.float64, torch.double]:
-        return 1e-16
-    else:
-        return 1e-12
-
-
-def get_eps(args):
-    return eps(args)
 
 
 def get_p_polar(p, eps=1e-16, keep_p0=False):
@@ -137,16 +129,28 @@ def plot_eval_results(args, data, data_name, outpath, start=None):
     plt.close()
 
 
-def latest_epoch(model_path, num=-1):
-    path = osp.join(model_path, 'weights_decoder/*pth')
-    file_list = glob.glob(f"{path}")
-    epochs = [[int(s) for s in filename.split('_') if s.isdigit()] for filename in file_list]
-    epochs.sort()
+def get_best_epoch(
+    model_path: str,
+    num: int = -1
+) -> int:
+    """Return the best epoch number if it is saved in the model path. 
+    Otherwise, return the latest epoch number.
+    """    
     try:
-        latest = epochs[num][0]
-    except IndexError:
+        info = torch.load(osp.join(model_path, 'trained_info.pt'))
+        return info['best_epoch']
+    except FileNotFoundError:
+        # trained_info.pt not saved
+        path = osp.join(model_path, 'weights_decoder/*.pth')
+        file_list = glob.glob(path)
+        epochs = [[int(s) for s in filename.split('_') if s.isdigit()]
+                  for filename in file_list]
+        epochs.sort()
         try:
-            latest = epochs[-1][0]
+            latest = epochs[num][0]
         except IndexError:
-            raise RuntimeError(f"Model does not exist in {model_path}")
-    return latest
+            try:
+                latest = epochs[-1][0]
+            except IndexError:
+                raise RuntimeError(f"Model does not exist in {model_path}")
+        return latest
