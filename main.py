@@ -69,8 +69,11 @@ def setup_argparse() -> Namespace:
     parser = parse_eval_settings(parser)
     parser = parse_model_settings(parser)
     args = parser.parse_args()
+    logging.info(args)
     
     if args.load_to_train and args.load_epoch < 0:
+        if args.load_path is None:
+            raise ValueError("You must specify a path to load the model from.")
         args.load_epoch = get_best_epoch(args.load_path, num=args.load_epoch)
     
     if args.patience <= 0:
