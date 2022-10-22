@@ -1,55 +1,68 @@
+from typing import List, Union
 import torch
 import torch.nn as nn
 import logging
 
 from .graphnet import GraphNet
-
-DEFAULT_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DEFAULT_DTYPE = torch.float
-LOCAL_MIXING_CHOICES = ('node', 'local')
+from .const import LOCAL_MIX
+from utils.const import DEFAULT_DEVICE, DEFAULT_DTYPE
 
 class Decoder(nn.Module):
     def __init__(
-        self, num_nodes, latent_node_size, output_node_size, node_sizes, edge_sizes,
-        num_mps, dropout, alphas, batch_norm=False, latent_map='mix', normalize_output=False,
-        device=None, dtype=None
+        self, 
+        num_nodes: int, 
+        latent_node_size: int, 
+        output_node_size: int, 
+        node_sizes: List[List[int]], 
+        edge_sizes: List[List[int]],
+        num_mps: int, 
+        dropout: float, 
+        alphas: List[int], 
+        batch_norm: int = False, 
+        latent_map: str = 'mix', 
+        normalize_output: bool = False,
+        device: torch.device = None, 
+        dtype: torch.dtype = None
     ):
-        '''
-        The graph decoder of the autoencoder built on `GraphNet`
-        
-        Parameters
-        ----------
-        num_nodes: int
-            Number of nodes in the decoder.
-        latent_node_size: int 
-            Size/dimension of the latent feature vectors.
-            If the latent map is 'mix', this is the size of the latent feature vectors per node.
-        output_node_size: int
-            Size/dimension of the output/reconstructed node feature vectors.
-        node_sizes: array-like
-            List of sizes/dimensions of the node feature vectors in each massage passing step.
-        edge_sizes: array-like
-            List of sizes/dimensions of the edge feature vectors in each massage passing step.
-        num_mps: int
-            Number of message passing steps.
-        dropout: float
-            Dropout rate.
-        alphas: array-like
-            Alpha value for the leaky relu layer for edge features 
-            in each iteration of message passing.
-        batch_norm: bool
-            Whether to use batch normalization 
-            in the edge and node features.
-        latent_map: str, default: `'mix'`
-            The choice of mapping to latent space. The choices are ('mix', 'mean', 'node', 'local'). 
-            If `'mix'`, a linear layer is used to map the node features to the latent space.
-            If `'mean'`, the mean is taken across the node features in the graph.
-            If `'local'` or `'node'`, linear layers are applied per node.
-        device: torch.device, default: `'cuda'` if gpu is available and `'cpu'` otherwise
-            The device on which the model is run.
-        dtype: torch.dtype, default: torch.float
-            The data type of the model.
-        '''
+        """GNN decoder built on `GraphNet`
+
+        :param num_nodes: Number of nodes in the decoder.
+        :type num_nodes: int
+        :param latent_node_size: Size/dimension of the latent feature vectors.
+        If the latent map is 'local mix', this is the size of the latent feature vectors per node.
+        :type latent_node_size: int
+        :param output_node_size: Size/dimension of the output/reconstructed node feature vectors.
+        :type output_node_size: int
+        :param node_sizes: List of sizes/dimensions of the node feature vectors 
+        in each massage passing step.
+        :type node_sizes: Union[int, List[int], List[int]]
+        :param edge_sizes: List of sizes/dimensions of the edge feature vectors 
+        in each massage passing step.
+        :type edge_sizes: Union[int, List[int], List[int]]
+        :param num_mps: Number of message passing steps.
+        :type num_mps: int
+        :param dropout: Dropout rate.
+        :type dropout: float
+        :param alphas: Alpha value for the leaky relu layer for edge features 
+        in each iteration of message passing.
+        :type alphas: Union[int, List[int]]
+        :param batch_norm: Whether to use batch normalization 
+        in the edge and node features., defaults to False
+        :type batch_norm: int, optional
+        :param latent_map: Choice of mapping to latent space, defaults to 'node'. 
+        If `'mean'`, the mean is taken across the node features in the graph.
+        If `'local'` or `'node'`, linear layers are applied per node. 
+        If `'global'` or `'graph'`, a single linear layer is applied to the graph. 
+        :type latent_map: str, optional
+        :param normalize_output: Whether to normalize output, defaults to False
+        :type normalize_output: bool, optional
+        :param device: Device of the model, defaults to None. 
+        If None, use gpu if cuda is available and otherwise cpu.
+        :type device: torch.device, optional
+        :param dtype: Dtype of the model, defaults to None.
+        If None, use torch.float64.
+        :type dtype: torch.dtype, optional
+        """
         if device is None:
             device = DEFAULT_DEVICE
         if dtype is None:
@@ -70,7 +83,8 @@ class Decoder(nn.Module):
         self.dtype = dtype
 
         # layers
-        if self.latent_map.lower() in LOCAL_MIXING_CHOICES:
+        if self.latent_map.lower() in LOCAL_MIX:
+            # node-wise aggregation layer
             latent_space_size = latent_node_size * num_nodes
         else:
             latent_space_size = latent_node_size
@@ -96,7 +110,11 @@ class Decoder(nn.Module):
         num_params = sum(p.nelement()for p in self.parameters() if p.requires_grad)
         logging.info(f"Decoder initialized. Number of parameters: {num_params}")
 
-    def forward(self, x, metric='cartesian'):
+    def forward(
+        self, 
+        x: torch.Tensor, 
+        metric='euclidean'
+    ) -> torch.Tensor:
         x = x.to(self.device).to(self.dtype)
         x = self.linear(x).view(-1, self.num_nodes, self.latent_node_size)
         x = self.decoder(x, metric=metric)
