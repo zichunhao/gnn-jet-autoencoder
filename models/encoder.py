@@ -77,7 +77,7 @@ class Encoder(nn.Module):
         self.edge_sizes = edge_sizes
         self.num_mps = num_mps
         self.latent_map = latent_map
-        if self.latent_map.lower() in LOCAL_MIX:
+        if self.latent_map.lower().replace(' ', '_') in LOCAL_MIX:
             self.latent_space_size = latent_node_size * num_nodes
         else:
             self.latent_space_size = latent_node_size
