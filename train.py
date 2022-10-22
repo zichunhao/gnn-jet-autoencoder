@@ -71,7 +71,7 @@ def setup_argparse() -> Namespace:
     parser = parse_eval_settings(parser)
     parser = parse_model_settings(parser)
     args = parser.parse_args()
-    logging.info(args)
+    logging.debug(f"args before updating: {args}")
     
     if args.load_to_train and args.load_epoch < 0:
         if args.load_path is None:
