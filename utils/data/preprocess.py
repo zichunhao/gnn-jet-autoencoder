@@ -22,7 +22,7 @@ def prepare(
     logging.info(f"Downloading data ({jet_type=}) from JetNet.")
     data = jetnet.datasets.JetNet(
         jet_type=jet_type,
-        data_dir=save_dir / "hdf5"
+        data_dir=args.jetnet_dir
     )
     logging.info(f"Preparing data ({jet_type=}).")
 
@@ -117,12 +117,17 @@ if __name__ == "__main__":
         help='Directory to save preprocessed data.'
     )
     parser.add_argument(
+        '--jetnet-dir',
+        type=str, default='data',
+        help='Directory to save JetNet data.'
+    )
+    parser.add_argument(
         '-t', '--test-portion',
         type=float, default=0.2,
         help="Test portion of the data."
     )
     parser.add_argument(
-        '--coord', type='str', default='cartesian',
+        '--coord', type=str, default='cartesian',
         help="Coordinate system to use for the data. "
         "Options: ('cartesian', 'polar', 'polar_rel')."
     )
