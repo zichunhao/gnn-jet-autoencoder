@@ -15,4 +15,4 @@ To download data:
     ```
 
 ## Training
-To train the model, run `train.py`. An example is provided in `examples/main.sh`.
+To train the model, run `train.py`. An example is provided in `examples/train.sh`.

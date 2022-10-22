@@ -1,7 +1,7 @@
 #!/bin/bash
 
 mkdir -p "dev";
-python main.py \
+python train.py \
 --batch-size 16 \
 --jet-type qcd \
 --data-paths "data/g_jets_30p_small.pt" "data/q_jets_30p_small.pt" \
