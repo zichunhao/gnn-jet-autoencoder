@@ -9,6 +9,10 @@ def parse_data_settings(parser: argparse.ArgumentParser) -> argparse.ArgumentPar
                         help='Paths of the data.')
     parser.add_argument('--test-data-paths', type=str, nargs='+', 
                         help='Paths of the test data.')
+    parser.add_argument('-bs', '--batch-size', type=int, default=64, metavar='',
+                        help='Batch size.')
+    parser.add_argument('-tbs', '--test-batch-size', type=int, default=128, metavar='',
+                        help='Test batch size.')
     parser.add_argument('--unit', type=str, default='TeV',
                         help="The unit of momenta. Choices: ('GeV', 'TeV'). Default: TeV. ")
     parser.add_argument('--abs-coord', type=get_bool, default=True, metavar='',
@@ -86,8 +90,6 @@ def parse_training_settings(parser: argparse.ArgumentParser) -> argparse.Argumen
                         help='Learning rate of the backpropagation.')
     parser.add_argument('--optimizer', type=str, default="adam", metavar='',
                         help="The optimizer to use. Options:('adam', 'rmprop') Default: 'adam'")
-    parser.add_argument('-bs', '--batch-size', type=int, default=16, metavar='',
-                        help='Batch size.')
     parser.add_argument('-e', '--num-epochs', type=int, default=64, metavar='',
                         help='Number of epochs for training.')
     parser.add_argument('-p', '--patience', type=int, default=-1, metavar='',
@@ -96,7 +98,7 @@ def parse_training_settings(parser: argparse.ArgumentParser) -> argparse.Argumen
                         help="Choice of loss function. Options: ('ChamferLoss', 'EMDLoss', 'hybrid')")
     parser.add_argument('--loss-norm-choice', type=str, default='cartesian', metavar='',
                         help="Choice of calculating the norms of 4-vectors when calculating the loss. "
-                        "Options: ['cartesian', 'minkowskian', 'polar']. "
+                        "Options: ['cartesian', 'minkowskian', 'polar']. \n"
                         "'cartesian': (+, +, +, +). \n"
                         "'minkowskian': (+, -, -, -) \n"
                         "'polar': convert to (E, pt, eta, phi) paired with metric (+, +, +, +) \n"
@@ -126,7 +128,7 @@ def parse_eval_settings(parser: argparse.ArgumentParser) -> argparse.ArgumentPar
     parser.add_argument('--plot-start-epoch', type=int, default=-1, metavar='',
                         help='The epoch to start plotting. Default: -1.')
     parser.add_argument('--cutoff', type=float, default=1e-7, metavar='',
-                        help='Cutoff value of (3-)momenta magnitude to be included in the historgram. Default: 1e-7.')
+                        help='Cutoff value of (3-)momenta magnitude to be included in the histogram. Default: 1e-7.')
     parser.add_argument('--fill', default=False, action='store_true',
                         help='Whether to plot filled histograms as well. True only if called in the command line.')
 
