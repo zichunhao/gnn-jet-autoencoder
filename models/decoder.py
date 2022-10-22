@@ -121,3 +121,12 @@ class Decoder(nn.Module):
         if self.normalize_output:
             x = torch.tanh(x)
         return x
+    
+    def l1_norm(self):
+        """L1 norm of the model parameters."""
+        return sum(p.abs().sum() for p in self.parameters())
+
+
+    def l2_norm(self):
+        """L2 norm of the model parameters."""
+        return sum(p.pow(2).sum() for p in self.parameters())

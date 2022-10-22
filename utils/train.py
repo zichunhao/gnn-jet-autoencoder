@@ -262,23 +262,22 @@ def train_loop(
 def get_loss(
     args: Namespace, 
     p4_recons: torch.Tensor, 
-    p4_target: torch.Tensor
+    p4_target: torch.Tensor,
+    encoder: Encoder = None,
+    decoder: Decoder = None
 ) -> torch.Tensor:
     if args.loss_choice.lower() in ['chamfer', 'chamferloss', 'chamfer_loss']:
         from utils.losses import ChamferLoss
         chamferloss = ChamferLoss(loss_norm_choice=args.loss_norm_choice)
         batch_loss = chamferloss(p4_recons, p4_target, jet_features_weight=args.chamfer_jet_features_weight)  # output, target
-        return batch_loss
 
     if args.loss_choice.lower() in ['emd', 'emdloss', 'emd_loss']:
         from utils.losses import emd_loss
         batch_loss = emd_loss(p4_target, p4_recons, eps=EPS, device=args.device)  # true, output
-        return batch_loss
 
     if args.loss_choice.lower() in ['mse', 'mseloss', 'mse_loss']:
         mseloss = nn.MSELoss()
         batch_loss = mseloss(p4_recons, p4_target)  # output, target
-        return batch_loss
 
     if args.loss_choice.lower() in ['hybrid', 'combined', 'mix']:
         from utils.losses import ChamferLoss
@@ -289,4 +288,11 @@ def get_loss(
         ) + emd_loss(
             p4_target, p4_recons, eps=EPS, device=args.device
         )
-        return batch_loss
+    
+    # regularizations
+    if (encoder is not None) and (decoder is not None):
+        if args.l1_lambda > 0:
+            batch_loss = batch_loss + args.l1_lambda * (encoder.l1_norm() + decoder.l1_norm())
+        if args.l2_lambda > 0:
+            batch_loss = batch_loss + args.l2_lambda * (encoder.l2_norm() + decoder.l2_norm())
+    return batch_loss

@@ -120,6 +120,12 @@ def parse_training_settings(parser: argparse.ArgumentParser) -> argparse.Argumen
                         help='Path of the trained model to load.')
     parser.add_argument('--load-epoch', type=int, default=-1, metavar='',
                         help='Epoch number of the trained model to load.')
+    
+    # L1 and L2 regularizations
+    parser.add_argument('--l1-lambda', type=float, default=1e-8, metavar='',
+                        help='penalty for L1 regularization.')
+    parser.add_argument('--l2-lambda', type=float, default=0, metavar='',
+                        help='penalty for L2 regularization.')
     return parser
 
 def parse_eval_settings(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
@@ -151,18 +157,18 @@ def parse_eval_settings(parser: argparse.ArgumentParser) -> argparse.ArgumentPar
     parser.add_argument('--particle-rel-err-max-cartesian', nargs="+", type=float, default=[1, 1, 1], metavar='',
                         help='xmax of histogram for particle reconstruction relative errors in Cartesian coordinates.')
     parser.add_argument('--particle-padded-recons-min-cartesian', nargs="+", type=float, default=[-100, -100, -100], metavar='',
-                        help='xmin of histogram for reconstructed padded particless in Cartesian coordinates.')
+                        help='xmin of histogram for reconstructed padded particles in Cartesian coordinates.')
     parser.add_argument('--particle-padded-recons-max-cartesian', nargs="+", type=float, default=[100, 100, 100], metavar='',
-                        help='xmax of histogram for reconstructed padded particless in Cartesian coordinates.')
+                        help='xmax of histogram for reconstructed padded particles in Cartesian coordinates.')
 
     parser.add_argument('--particle-rel-err-min-polar', nargs="+", type=float, default=[-1, -1, -1], metavar='',
                         help='xmin of histogram for particle reconstruction relative errors in polar coordinates (pt, eta, phi).')
     parser.add_argument('--particle-rel-err-max-polar', nargs="+", type=float, default=[1, 1, 1], metavar='',
                         help='xmax of histogram for particle reconstruction relative errors in polar coordinates (pt, eta, phi).')
     parser.add_argument('--particle-padded-recons-min-polar', nargs="+", type=float, default=[-100, -1, -np.pi], metavar='',
-                        help='xmin of histogram for reconstructed padded particless in polar coordinates (pt, eta, phi).')
+                        help='xmin of histogram for reconstructed padded particles in polar coordinates (pt, eta, phi).')
     parser.add_argument('--particle-padded-recons-max-polar', nargs="+", type=float, default=[100, 1, np.pi], metavar='',
-                        help='xmax of histogram for reconstructed padded particless in polar coordinates.')
+                        help='xmax of histogram for reconstructed padded particles in polar coordinates.')
 
     parser.add_argument('--custom-jet-recons-ranges', default=False, action='store_true',
                         help='Whether to manually set the ranges of jet reconstruction errors. '

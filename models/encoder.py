@@ -152,3 +152,12 @@ class Encoder(nn.Module):
             x = torch.mean(x, dim=-2).unsqueeze(dim=0)
         
         return x
+
+    def l1_norm(self):
+        """L1 norm of the model parameters."""
+        return sum(p.abs().sum() for p in self.parameters())
+
+
+    def l2_norm(self):
+        """L2 norm of the model parameters."""
+        return sum(p.pow(2).sum() for p in self.parameters())
