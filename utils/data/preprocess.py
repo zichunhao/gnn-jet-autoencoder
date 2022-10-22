@@ -75,7 +75,7 @@ def prepare(
     torch.save(p[:NUM_DEV_INSTANCES], save_dir / f"{jet_type}_jets_30p_small.pt")
     logging.info(
         f"Data saved in {save_dir} as {jet_type}_jets_30p_all.pt, {jet_type}_jets_30p_train.pt, "
-        f"{jet_type}_jets_30p_test.pt, and  {jet_type}_jets_30p_small.pt."
+        f"{jet_type}_jets_30p_test.pt, and {jet_type}_jets_30p_small.pt."
     )
 
     return
