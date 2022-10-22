@@ -272,8 +272,12 @@ def get_loss(
         batch_loss = chamferloss(p4_recons, p4_target, jet_features_weight=args.chamfer_jet_features_weight)  # output, target
 
     if args.loss_choice.lower() in ['emd', 'emdloss', 'emd_loss']:
-        from utils.losses import emd_loss
-        batch_loss = emd_loss(p4_target, p4_recons, eps=EPS, device=args.device)  # true, output
+        from utils.losses import EMDLoss
+        emdloss = EMDLoss(
+            num_particles=p4_recons.shape[-2],
+            device='cuda' if 'cuda' in str(args.device).lower() else 'cpu'
+        )
+        batch_loss = emdloss(p4_target, p4_recons)  # true, output
 
     if args.loss_choice.lower() in ['mse', 'mseloss', 'mse_loss']:
         mseloss = nn.MSELoss()
@@ -281,12 +285,17 @@ def get_loss(
 
     if args.loss_choice.lower() in ['hybrid', 'combined', 'mix']:
         from utils.losses import ChamferLoss
-        from utils.losses import emd_loss
+        from utils.losses import EMDLoss
         chamferloss = ChamferLoss(loss_norm_choice=args.loss_norm_choice)
+        emdloss = EMDLoss(
+            num_particles=p4_recons.shape[-2],
+            device='cuda' if 'cuda' in str(args.device).lower() else 'cpu'
+        )
         batch_loss = args.chamfer_loss_weight * chamferloss(
-            p4_recons, p4_target, jet_features_weight=args.chamfer_jet_features_weight
-        ) + emd_loss(
-            p4_target, p4_recons, eps=EPS, device=args.device
+            p4_recons, p4_target, 
+            jet_features_weight=args.chamfer_jet_features_weight
+        ) + emdloss(
+            p4_target, p4_recons
         )
     
     # regularizations
