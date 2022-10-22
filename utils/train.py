@@ -241,7 +241,7 @@ def train_loop(
             )
             return best_epoch
 
-        if (abs(valid_avg_loss) > BLOW_UP_THRESHOLD) or (abs(train_avg_loss) > BLOW_UP_THRESHOLD):
+        if abs(valid_avg_loss) > BLOW_UP_THRESHOLD:
             logging.error('Loss blows up. Training breaks.')
             return best_epoch
 
