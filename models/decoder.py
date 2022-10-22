@@ -83,7 +83,7 @@ class Decoder(nn.Module):
         self.dtype = dtype
 
         # layers
-        if self.latent_map.lower() in LOCAL_MIX:
+        if self.latent_map.lower().replace(' ', '_') in LOCAL_MIX:
             # node-wise aggregation layer
             latent_space_size = latent_node_size * num_nodes
         else:

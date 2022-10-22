@@ -143,10 +143,10 @@ class Encoder(nn.Module):
             x = torch.amax(x, dim=-2).unsqueeze(dim=0)  # Latent vector
         elif self.latent_map.lower() == 'min':
             x  = torch.amin(x, dim=-2).unsqueeze(dim=0)  # Latent vector
-        elif self.latent_map.lower() in GLOBAL_MIX:
+        elif self.latent_map.lower().replace(' ', '_') in GLOBAL_MIX:
             x = self.mix_layer(x.view(bs, -1)).unsqueeze(dim=0)
-        elif self.latent_map.lower() in LOCAL_MIX:
-            x = self.mix_layer(x).view(bs, -1)
+        elif self.latent_map.lower().replace(' ', '_') in LOCAL_MIX:
+            x = self.mix_layer(x.flatten(end_dim=-2)).view(bs, -1)
         else:
             logging.warning(f"Unknown latent map {self.latent_map} in Encoder. Using mean.")
             x = torch.mean(x, dim=-2).unsqueeze(dim=0)
