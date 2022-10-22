@@ -153,5 +153,6 @@ def get_best_epoch(
             try:
                 latest = epochs[-1][0]
             except IndexError:
-                raise RuntimeError(f"Model does not exist in {model_path}")
+                logging.warning(f"Model does not exist in {model_path}")
+                return -1
         return latest

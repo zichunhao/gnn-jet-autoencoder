@@ -77,6 +77,9 @@ def setup_argparse() -> Namespace:
         if args.load_path is None:
             raise ValueError("You must specify a path to load the model from.")
         args.load_epoch = get_best_epoch(args.load_path, num=args.load_epoch)
+        if args.load_epoch < 0:
+            # no model found
+            args.load_to_train = False
     
     if args.patience <= 0:
         import math
