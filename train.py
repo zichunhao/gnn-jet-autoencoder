@@ -5,7 +5,7 @@ import torch
 import os.path as osp
 from utils.utils import get_model_folder, get_best_epoch
 from utils.argparse_utils import parse_data_settings, parse_eval_settings, parse_model_settings, parse_training_settings
-from utils.initialize import initialize_dataloader, initialize_test_dataloader, initialize_models, initialize_optimizers
+from utils.initialize import initialize_dataloader, initialize_models, initialize_optimizers
 from utils.train import train_loop
 
 import logging
@@ -62,6 +62,8 @@ def main(args):
         optimizer_encoder, optimizer_decoder, outpath, args.device
     )
 
+    logging.info('Training finished!')
+    
 def setup_argparse() -> Namespace:
     parser = argparse.ArgumentParser(description='GNN autoencoder training options')
     parser = parse_data_settings(parser)
