@@ -116,7 +116,7 @@ def parse_training_settings(parser: argparse.ArgumentParser) -> argparse.Argumen
                         help='Whether to load existing (trained) model for training.')
     parser.add_argument('--load-path', type=str, default=None, metavar='',
                         help='Path of the trained model to load.')
-    parser.add_argument('--load-epoch', type=int, default=None, metavar='',
+    parser.add_argument('--load-epoch', type=int, default=-1, metavar='',
                         help='Epoch number of the trained model to load.')
     return parser
 
