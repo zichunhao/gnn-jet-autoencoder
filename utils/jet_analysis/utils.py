@@ -168,7 +168,7 @@ def get_p4_cartesian_from_polar(p: torch.Tensor) -> torch.Tensor:
     py = (p[..., pt_idx] * torch.sin(p[..., phi_idx])).unsqueeze(-1)
     pz = (p[..., pt_idx] * torch.sinh(p[..., eta_idx])).unsqueeze(-1)
 
-    return torch.stack((E, px, py, pz), dim=-1)
+    return torch.cat((E, px, py, pz), dim=-1)
 
 
 def get_p_polar_tensor(
@@ -177,16 +177,13 @@ def get_p_polar_tensor(
 ) -> torch.Tensor:
     """(E, px, py, pz) -> (pt, eta, phi)"""
     if p.shape[-1] == 4:
-        px = p[..., 1]
-        py = p[..., 2]
-        pz = p[..., 3]
+        p0, px, py, pz = p.unbind(-1)
     elif p.shape[-1] == 3:
-        px = p[..., 0]
-        py = p[..., 1]
-        pz = p[..., 2]
+        px, py, pz = p.unbind(-1)
     else:
         raise ValueError(
-            f'Invalid error. p.shape[-1] should be either 3 or 4. Found: {p.shape[-1]}.')
+            f'Invalid error. p.shape[-1] should be either 3 or 4. Found: {p.shape[-1]}.'
+        )
 
     pt = torch.sqrt(px ** 2 + py ** 2)
     try:
@@ -256,25 +253,24 @@ def get_jet_feature_cartesian(
 
     if isinstance(p4, np.ndarray):
         jet_p4 = np.sum(p4, axis=-2)
-        msq = jet_p4[:, 0] ** 2 - np.sum(np.power(jet_p4, 2)[:, 1:], axis=-1)
+        msq = jet_p4[..., 0] ** 2 - np.sum(np.power(jet_p4, 2)[..., 1:], axis=-1)
         jet_mass = np.sqrt(np.abs(msq)) * np.sign(msq)
-        jet_px = jet_p4[:, 1]
-        jet_py = jet_p4[:, 2]
-        jet_pz = jet_p4[:, 3]
+        jet_px = jet_p4[..., 1]
+        jet_py = jet_p4[..., 2]
+        jet_pz = jet_p4[..., 3]
         if return_arr:
             return np.stack((jet_mass, jet_px, jet_py, jet_pz), axis=-1)
 
     elif isinstance(p4, torch.Tensor):  # torch.Tensor
         if gpu:
             p4 = p4.to(device=DEVICE)
-        jet_p4 = torch.sum(p4, axis=-2)
-        msq = jet_p4[:, 0] ** 2 - \
-            torch.sum(torch.pow(jet_p4, 2)[:, 1:], axis=-1)
-        jet_mass = (torch.sqrt(torch.abs(msq)) *
-                    torch.sign(msq)).detach().cpu()
-        jet_px = jet_p4[:, 1].detach().cpu()
-        jet_py = jet_p4[:, 2].detach().cpu()
-        jet_pz = jet_p4[:, 3].detach().cpu()
+        jet_p4 = torch.sum(p4, dim=-2)
+        jet_p0, jet_px, jet_py, jet_pz = jet_p4.unbind(dim=-1)
+        msq = jet_p0 ** 2 - jet_px ** 2 - jet_py ** 2 - jet_pz ** 2
+        jet_mass = (torch.sqrt(torch.abs(msq)) * torch.sign(msq)).detach().cpu()
+        jet_px = jet_px.detach().cpu()
+        jet_py = jet_py.detach().cpu()
+        jet_pz = jet_pz.detach().cpu()
         if return_arr:
             return torch.stack((jet_mass, jet_px, jet_py, jet_pz), dim=-1)
 

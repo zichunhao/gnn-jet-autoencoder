@@ -58,14 +58,14 @@ def plot_p(
         if p4_target.shape[-1] == 3:
             pt, eta, phi = p4_target.unbind(-1)
             p0 = pt * torch.cosh(eta)
-            p4_target = torch.stack([p0, pt, eta, phi])
+            p4_target = torch.stack([p0, pt, eta, phi], dim=-1)
         p4_target = get_p4_cartesian_from_polar(p4_target)
         
         if p4_recons.shape[-1] == 3:
             # convert to 4-momentum
             pt, eta, phi = p4_recons.unbind(-1)
             p0 = pt * torch.cosh(eta)
-            p4_recons = torch.stack([p0, pt, eta, phi])
+            p4_recons = torch.stack([p0, pt, eta, phi], dim=-1)
         p4_recons = get_p4_cartesian_from_polar(p4_recons)
     else:
         # Cartesian coordinates
