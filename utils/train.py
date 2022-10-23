@@ -77,11 +77,11 @@ def train(
             if ('emd' in args.loss_choice.lower()) and ((i % args.save_freq) == 0 and i > 0):
                 torch.save(
                     encoder.state_dict(),
-                    osp.join(encoder_weight_path, f"epoch_{epoch+1}_encoder_weights.pth")
+                    osp.join(encoder_weight_path, f"epoch_{epoch}_encoder_weights.pth")
                 )
                 torch.save(
                     decoder.state_dict(),
-                    osp.join(decoder_weight_path, f"epoch_{epoch+1}_decoder_weights.pth")
+                    osp.join(decoder_weight_path, f"epoch_{epoch}_decoder_weights.pth")
                 )
 
     recons_data = torch.cat(recons_data, dim=0)
@@ -159,7 +159,7 @@ def train_loop(
     path_eval = Path(outpath) / 'model_evaluations'
     path_eval.mkdir(exist_ok=True, parents=True)
 
-    for ep in range(args.num_epochs):
+    for ep in range(1, args.num_epochs + 1):
         epoch = args.load_epoch + ep if args.load_to_train else ep
 
         # Training
@@ -178,7 +178,7 @@ def train_loop(
         if (abs(valid_avg_loss) < best_loss):
             best_loss = valid_avg_loss
             num_stale_epochs = 0
-            best_epoch = epoch + 1
+            best_epoch = epoch
             torch.save(
                 encoder.state_dict(),
                 osp.join(outpath, "weights_encoder/best_encoder_weights.pth")
@@ -230,7 +230,7 @@ def train_loop(
         np.savetxt(path_eval / 'dts.txt', dts)
 
         logging.info(
-            f'epoch={epoch+1}/{total_epoch}, train_loss={train_avg_loss}, valid_loss={valid_avg_loss}, '
+            f'epoch={epoch}/{total_epoch}, train_loss={train_avg_loss}, valid_loss={valid_avg_loss}, '
             f'{dt=}s, {num_stale_epochs=}, {best_epoch=}'
         )
 
