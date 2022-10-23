@@ -43,18 +43,39 @@ def initialize_models(args):
     if args.load_to_train:
         model_path = Path(args.load_path)
         try:
-            encoder.load_state_dict(torch.load(
-                model_path / f'weights_encoder/epoch_{args.load_epoch}_encoder_weights.pth',
-                map_location=args.device
-            ))
-            decoder.load_state_dict(torch.load(
-                model_path / f'weights_encoder/epoch_{args.load_epoch}_decoder_weights.pth',
-                map_location=args.device
-            ))
+            if (model_path / f'weights_encoder/epoch_{args.load_epoch}_encoder_weights.pth').exists():
+                encoder.load_state_dict(torch.load(
+                    model_path / f'weights_encoder/epoch_{args.load_epoch}_encoder_weights.pth',
+                    map_location=args.device
+                ))
+                decoder.load_state_dict(torch.load(
+                    model_path / f'weights_encoder/epoch_{args.load_epoch}_decoder_weights.pth',
+                    map_location=args.device
+                ))
+            elif (model_path / f'weights_encoder/epoch_{args.load_epoch-1}_encoder_weights.pth').exists():
+                # load the previous epoch's weights
+                encoder.load_state_dict(torch.load(
+                    model_path / f'weights_encoder/epoch_{args.load_epoch-1}_encoder_weights.pth',
+                    map_location=args.device
+                ))
+                decoder.load_state_dict(torch.load(
+                    model_path / f'weights_encoder/epoch_{args.load_epoch-1}_decoder_weights.pth',
+                    map_location=args.device
+                ))
+            elif (model_path / f'weights_encoder/best.pth').exists():
+                logging.warning(f"Epoch {args.load_epoch} Not found. Loading the best model instead of the specified epoch.")
+                encoder.load_state_dict(torch.load(
+                    model_path / 'weights_encoder/best_encoder_weights.pth',
+                    map_location=args.device
+                ))
+                decoder.load_state_dict(torch.load(
+                    model_path / 'weights_encoder/best_decoder_weights.pth',
+                    map_location=args.device
+                ))
+            else:
+                logging.warning(f"No model at epoch {args.load_epoch} found in {model_path}. Training from scratch.")
         except FileNotFoundError:
-            logging.warning(f"Could not load model at epoch {args.load_epoch} from {model_path}. Training from scratch.")
-            args.load_to_train = False
-            args.load_epoch = 0
+            logging.warning(f"No model at epoch {args.load_epoch} found in {model_path}. Training from scratch.")
     
     return encoder, decoder
 
