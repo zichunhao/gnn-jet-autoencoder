@@ -161,7 +161,7 @@ class Encoder(nn.Module):
         else:
             # default to "mean"
             logging.warning(f"Unknown latent map {self.latent_map} in Encoder. Using mean.")
-            x = self.aggregate(x, bs, latent_map='mean')
+            x = self.__aggregate(x, bs, latent_map='mean')
         
         logging.debug(f"Encoder output shape: {x.shape}")
         return x
