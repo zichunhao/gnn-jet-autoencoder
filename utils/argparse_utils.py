@@ -128,6 +128,7 @@ def parse_training_settings(parser: argparse.ArgumentParser) -> argparse.Argumen
                         help='penalty for L2 regularization.')
     return parser
 
+
 def parse_eval_settings(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     parser.add_argument('--plot-freq', type=int, default=100, metavar='',
                         help='How frequent to plot. Used when --loss-choice is not EMD. Default: 100.')
