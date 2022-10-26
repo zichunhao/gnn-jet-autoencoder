@@ -85,13 +85,16 @@ class Decoder(nn.Module):
         # layers
         if self.latent_map.lower().replace(' ', '_') in LOCAL_MIX:
             # node-wise aggregation layer
-            latent_space_size = latent_node_size * num_nodes
+            self.linear = nn.Linear(
+                latent_node_size,
+                self.latent_node_size
+            ).to(self.device).to(self.dtype)
         else:
-            latent_space_size = latent_node_size
-        self.linear = nn.Linear(
-            latent_space_size,
-            self.num_nodes*self.latent_node_size
-        ).to(self.device).to(self.dtype)
+            self.linear = nn.Linear(
+                latent_node_size,
+                self.num_nodes*self.latent_node_size
+            ).to(self.device).to(self.dtype)
+            
 
         self.decoder = GraphNet(
             num_nodes=self.num_nodes, 
@@ -115,11 +118,22 @@ class Decoder(nn.Module):
         x: torch.Tensor, 
         metric='euclidean'
     ) -> torch.Tensor:
-        x = x.to(self.device).to(self.dtype)
-        x = self.linear(x).view(-1, self.num_nodes, self.latent_node_size)
+        x = self.__prepare_input(x)
+        # graph net
         x = self.decoder(x, metric=metric)
         if self.normalize_output:
             x = torch.tanh(x)
+        return x
+
+    def __prepare_input(self, x):
+        """Prepare input for the graph decoder."""
+        x = x.to(self.device).to(self.dtype)
+        if self.latent_map.lower().replace(' ', '_') in LOCAL_MIX:
+            x = x.view(-1, self.num_nodes, self.latent_node_size)
+            x = self.linear(x)  # map to input node size
+        else:
+            x = self.linear(x)  # map to input node size
+            x = x.view(-1, self.num_nodes, self.latent_node_size)
         return x
     
     def l1_norm(self):

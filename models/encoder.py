@@ -78,6 +78,7 @@ class Encoder(nn.Module):
         self.num_mps = num_mps
         self.latent_map = latent_map
         if self.latent_map.lower().replace(' ', '_') in LOCAL_MIX:
+            # (30 x 3 -> 30 x dim)
             self.latent_space_size = latent_node_size * num_nodes
         else:
             self.latent_space_size = latent_node_size
@@ -136,21 +137,33 @@ class Encoder(nn.Module):
         bs = x.shape[0]
         x = x.to(self.device).to(self.dtype)
         x = self.encoder(x, metric=metric)
-        
-        if self.latent_map.lower() == 'mean':
-            x = torch.mean(x, dim=-2).unsqueeze(dim=0)  # Latent vector
-        elif self.latent_map.lower() == 'max':
-            x = torch.amax(x, dim=-2).unsqueeze(dim=0)  # Latent vector
-        elif self.latent_map.lower() == 'min':
-            x  = torch.amin(x, dim=-2).unsqueeze(dim=0)  # Latent vector
-        elif self.latent_map.lower().replace(' ', '_') in GLOBAL_MIX:
-            x = self.mix_layer(x.view(bs, -1)).unsqueeze(dim=0)
-        elif self.latent_map.lower().replace(' ', '_') in LOCAL_MIX:
-            x = self.mix_layer(x.flatten(end_dim=-2)).view(bs, -1)
+        x = self.__aggregate(x, bs, self.latent_map)
+        return x
+
+    def __aggregate(self, x, bs, latent_map):
+        latent_map = self.latent_map.replace(' ', '_').lower()
+        # aggregation to latent space
+        if latent_map == 'mean':
+            # (bs, n, graph_dim) -> (bs, latent_dim)
+            x = torch.mean(x, dim=-2)
+        elif latent_map == 'max':
+            # (bs, n, graph_dim) -> (bs, latent_dim)
+            x = torch.amax(x, dim=-2)
+        elif latent_map == 'min':
+            # (bs, n, graph_dim) -> (bs, latent_dim)
+            x = torch.amin(x, dim=-2)
+        elif latent_map.replace(' ', '_') in GLOBAL_MIX:
+            # (bs, n, graph_dim) -> (bs, n*graph_dim) -> (bs, latent_dim)
+            x = self.mix_layer(x.view(bs, -1))
+        elif latent_map.replace(' ', '_') in LOCAL_MIX:
+            # (bs, n, graph_dim) -> (bs, n, latent_dim)
+            x = self.mix_layer(x).view(bs, -1)
         else:
+            # default to "mean"
             logging.warning(f"Unknown latent map {self.latent_map} in Encoder. Using mean.")
-            x = torch.mean(x, dim=-2).unsqueeze(dim=0)
+            x = self.aggregate(x, bs, latent_map='mean')
         
+        logging.debug(f"Encoder output shape: {x.shape}")
         return x
 
     def l1_norm(self):
