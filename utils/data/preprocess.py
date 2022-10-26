@@ -118,7 +118,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         '--jetnet-dir',
-        type=str, default='data',
+        type=str, default=None,
         help='Directory to save JetNet data.'
     )
     parser.add_argument(
@@ -144,6 +144,10 @@ if __name__ == "__main__":
     )
     
     args = parser.parse_args()
+    
+    if args.jetnet_dir is None:
+        args.jetnet_dir = args.save_dir
+
     logging.info(f"{args=}")
     
     for jet_type in args.jet_types:
