@@ -86,6 +86,7 @@ def setup_argparse() -> Namespace:
     args = parser.parse_args()
     logging.debug(f"args before updating: {args}")
     args.load_to_train = True
+    args.load_epoch = get_best_epoch(args.load_path, num=args.load_epoch)
 
     return args
     
