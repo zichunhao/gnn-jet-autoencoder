@@ -37,10 +37,10 @@ class PermutationTest:
                 x = x.to(device=self.device, dtype=self.dtype)
                 inv, p_inv = self.invariance_dev(x)
                 eqv, p_eqv = self.equivariance_dev(x)
-                inv_dev.append(inv)
-                eqv_dev.append(eqv)
-                perm_inv.append(p_inv)
-                perm_eqv.append(p_eqv)
+                inv_dev.append(inv.detach().cpu())
+                eqv_dev.append(eqv.detach().cpu())
+                perm_inv.append(p_inv.detach().cpu())
+                perm_eqv.append(p_eqv.detach().cpu())
             inv_dev = torch.cat(inv_dev, dim=0)
             eqv_dev = torch.cat(eqv_dev, dim=0)
             perm_inv = torch.cat(perm_inv, dim=0)
@@ -50,6 +50,10 @@ class PermutationTest:
             # a single batch
             inv_dev, perm_inv = self.invariance_dev(x)
             eqv_dev, perm_eqv = self.equivariance_dev(x)
+            inv_dev = inv_dev.detach().cpu()
+            eqv_dev = eqv_dev.detach().cpu()
+            perm_inv = perm_inv.detach().cpu()
+            perm_eqv = perm_eqv.detach().cpu()
         else:
             raise TypeError(
                 "x must be a DataLoader or a Tensor. "
@@ -135,7 +139,7 @@ def get_model_output(
     decoder: Decoder
 ) -> torch.Tensor:
     """Get the model output for a given input."""
-    return decoder(encoder(x))
+    return decoder(encoder(x)).detach()
 
 def get_dev_summary(
     dev: torch.Tensor, 
