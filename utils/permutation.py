@@ -145,11 +145,11 @@ def get_dev_summary(
 ) -> Dict[str, Union[torch.Tensor, float]]:
     
     summary = {
-        'mean': dev.mean(),
-        'median': dev.median(),
-        'max': dev.max(),
-        'min': dev.min(),
-        'std': dev.std(),
+        'mean': dev.mean().item(),
+        'median': dev.median().item(),
+        'max': dev.max().item(),
+        'min': dev.min().item(),
+        'std': dev.std().item(),
     }
     
     if verbose:
