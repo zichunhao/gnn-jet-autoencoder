@@ -46,8 +46,6 @@ def parse_model_settings(parser: argparse.ArgumentParser) -> argparse.ArgumentPa
                         )
     parser.add_argument('--encoder-num-mps', type=int, default=3, metavar='',
                         help='Number of message passing steps in encoder.')
-    parser.add_argument('--encoder-dropout', type=float, default=0.2, metavar='',
-                        help='Dropout value for edge features in encoder.')
     parser.add_argument('--encoder-alphas', type=float, default=0.2, metavar='',
                         help='Alpha values for the leaky relu layers in encoder.')
     parser.add_argument('--encoder-batch-norm', action='store_true', default=False, 
@@ -70,8 +68,6 @@ def parse_model_settings(parser: argparse.ArgumentParser) -> argparse.ArgumentPa
                         )
     parser.add_argument('--decoder-num-mps', type=int, default=3, metavar='',
                         help='Number of message passing steps in decoder.')
-    parser.add_argument('--decoder-dropout', type=float, default=0.1, metavar='',
-                        help='Dropout value for edge features in decoder.')
     parser.add_argument('--decoder-alphas', type=float, default=0.2, metavar='',
                         help='Alpha value for the leaky relu layers in decoder.')
     parser.add_argument('--decoder-batch-norm', action='store_true', default=False,

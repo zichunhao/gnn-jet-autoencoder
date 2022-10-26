@@ -17,7 +17,6 @@ class GraphNet(nn.Module):
         node_sizes: List[List[int]], 
         edge_sizes: List[List[int]],
         num_mps: int, 
-        dropout: float = 0.1, 
         alphas: List[int] = 0.1,
         batch_norm: bool = False, 
         device: torch.device = None, 
@@ -40,8 +39,6 @@ class GraphNet(nn.Module):
         :type edge_sizes: List[List[int]]
         :param num_mps: Number of message passing steps.
         :type num_mps: int
-        :param dropout: Dropout rate for edge conv, defaults to 0.1
-        :type dropout: float, optional
         :param alphas: Alpha value for the leaky relu layer for edge features 
         in each iteration of message passing., defaults to 0.1
         :type alphas: List[int], optional
@@ -90,7 +87,6 @@ class GraphNet(nn.Module):
             self.bn_edge = nn.ModuleList()
 
         self.alphas = alphas  # For leaky relu layer for edge features
-        self.dropout_p = dropout  # Dropout layer for edge features
 
         for i in range(self.num_mps):
             # Edge layers
@@ -213,17 +209,6 @@ class GraphNet(nn.Module):
         x = x.view(batch_size * self.num_nodes, edge_size + node_size)
         return x
 
-    def _dropout(self, x: torch.Tensor) -> torch.Tensor:
-        """Dropout layer
-
-        :param x: Input tensor.
-        :type x: torch.Tensor
-        :return: Output tensor.
-        :rtype: torch.Tensor
-        """        
-        dropout = nn.Dropout(p=self.dropout_p)
-        return dropout(x)
-
     def _aggregate(
         self, 
         x: torch.Tensor, 
@@ -250,7 +235,6 @@ class GraphNet(nn.Module):
             x = F.leaky_relu(x, negative_slope=self.alphas[i])
             if self.batch_norm:
                 x = self.bn_node[i][j](x)
-            x = self._dropout(x)
         return x
 
     def _edge_conv(
@@ -272,7 +256,6 @@ class GraphNet(nn.Module):
             A = F.leaky_relu(A, negative_slope=self.alphas[i])
             if self.batch_norm:
                 A = self.bn_edge[i][j](A)
-            A = self._dropout(A)
         return A
 
 

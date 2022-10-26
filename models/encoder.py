@@ -17,7 +17,6 @@ class Encoder(nn.Module):
         node_sizes: List[List[int]], 
         edge_sizes: List[List[int]],
         num_mps: int, 
-        dropout: float, 
         alphas: List[int],
         batch_norm: bool = False, 
         latent_map: str = 'global mix', 
@@ -43,8 +42,6 @@ class Encoder(nn.Module):
         :type edge_sizes: List[List[int]]
         :param num_mps: Number of message passing steps.
         :type num_mps: int
-        :param dropout: Dropout rate.
-        :type dropout: float
         :param alphas: Alpha value for the leaky relu layer for edge features 
         in each iteration of message passing.
         :type alphas: List[int]
@@ -99,7 +96,6 @@ class Encoder(nn.Module):
             node_sizes=self.node_sizes,
             edge_sizes=self.edge_sizes, 
             num_mps=self.num_mps,
-            dropout=dropout, 
             alphas=alphas, 
             batch_norm=batch_norm,
             dtype=self.dtype, 
