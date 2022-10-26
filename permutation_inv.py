@@ -3,8 +3,6 @@ import argparse
 from pathlib import Path
 import torch
 from utils.argparse_utils import (
-    parse_data_settings, 
-    parse_eval_settings, 
     parse_model_settings, 
     get_device, 
     get_dtype, 
@@ -12,6 +10,7 @@ from utils.argparse_utils import (
 )
 from utils.initialize import initialize_models, initialize_test_dataloader
 from utils.permutation import PermutationTest
+from utils.utils import get_best_epoch
 
 import logging
 logging.basicConfig(level=logging.INFO)
