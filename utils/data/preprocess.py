@@ -127,7 +127,7 @@ if __name__ == "__main__":
         help="Test portion of the data."
     )
     parser.add_argument(
-        '--coord', type=str, default='cartesian',
+        '--coord', type=str, default='polar_rel',
         help="Coordinate system to use for the data. "
         "Options: ('cartesian', 'polar', 'polar_rel')."
     )
