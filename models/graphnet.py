@@ -1,4 +1,5 @@
-from typing import Any, Callable, Iterable, List, Union
+from typing import Callable, List, Union
+import warnings
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -18,6 +19,7 @@ class GraphNet(nn.Module):
         edge_sizes: List[List[int]],
         num_mps: int, 
         alphas: List[int] = 0.1,
+        dropout: float = 0.0,
         batch_norm: bool = False, 
         device: torch.device = None, 
         dtype: torch.dtype = None
@@ -40,7 +42,9 @@ class GraphNet(nn.Module):
         :param num_mps: Number of message passing steps.
         :type num_mps: int
         :param alphas: Alpha value for the leaky relu layer for edge features 
-        in each iteration of message passing., defaults to 0.1
+        in each iteration of message passing., defaults to 0.1.
+        :param dropout: Dropout rate, defaults to 0.0.
+        :type dropout: float
         :type alphas: List[int], optional
         :param batch_norm: Whether to use batch normalization, defaults to False
         :type batch_norm: bool, optional
@@ -87,6 +91,11 @@ class GraphNet(nn.Module):
             self.bn_edge = nn.ModuleList()
 
         self.alphas = alphas  # For leaky relu layer for edge features
+        self.dropout_p = dropout  # Dropout rate
+        if self.dropout_p > 0:
+            warnings.warn(
+                "Dropout is going to break the permutation symmetry of the model in training mode."
+            )
 
         for i in range(self.num_mps):
             # Edge layers
@@ -149,6 +158,19 @@ class GraphNet(nn.Module):
 
         x = x.view(batch_size, self.num_nodes, self.output_node_size)
         return x
+    
+    def _dropout(self, x: torch.Tensor) -> torch.Tensor:
+        """Dropout layer
+        :param x: Input tensor.
+        :type x: torch.Tensor
+        :return: Output tensor.
+        :rtype: torch.Tensor
+        """
+        if self.dropout_p > 0:
+            dropout = nn.Dropout(p=self.dropout_p)
+            return dropout(x)
+        else:
+            return x
 
     def _getA(
         self, 
@@ -235,7 +257,7 @@ class GraphNet(nn.Module):
             x = F.leaky_relu(x, negative_slope=self.alphas[i])
             if self.batch_norm:
                 x = self.bn_node[i][j](x)
-        return x
+        return self._dropout(x)
 
     def _edge_conv(
         self, 
@@ -256,7 +278,7 @@ class GraphNet(nn.Module):
             A = F.leaky_relu(A, negative_slope=self.alphas[i])
             if self.batch_norm:
                 A = self.bn_edge[i][j](A)
-        return A
+        return self._dropout(A)
 
 
 def _create_dnn(

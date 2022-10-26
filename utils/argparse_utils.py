@@ -48,6 +48,8 @@ def parse_model_settings(parser: argparse.ArgumentParser) -> argparse.ArgumentPa
                         help='Number of message passing steps in encoder.')
     parser.add_argument('--encoder-alphas', type=float, default=0.2, metavar='',
                         help='Alpha values for the leaky relu layers in encoder.')
+    parser.add_argument('--encoder-dropout', type=float, default=0.0, metavar='',
+                        help='Dropout rate in encoder.')
     parser.add_argument('--encoder-batch-norm', action='store_true', default=False, 
                         help='Call to include batch normalizations in encoder. Default: True.')
     parser.add_argument('--encoder-metric', type=str, default='euclidean', metavar='',
@@ -70,6 +72,8 @@ def parse_model_settings(parser: argparse.ArgumentParser) -> argparse.ArgumentPa
                         help='Number of message passing steps in decoder.')
     parser.add_argument('--decoder-alphas', type=float, default=0.2, metavar='',
                         help='Alpha value for the leaky relu layers in decoder.')
+    parser.add_argument('--decoder-dropout', type=float, default=0.0, metavar='',
+                        help='Dropout rate in decoder.')
     parser.add_argument('--decoder-batch-norm', action='store_true', default=False,
                         help='Whether to include batch normalizations in decoder. Default: True.')
     parser.add_argument('--decoder-metric', type=str, default='euclidean', metavar='',

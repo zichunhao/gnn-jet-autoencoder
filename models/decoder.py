@@ -17,6 +17,7 @@ class Decoder(nn.Module):
         edge_sizes: List[List[int]],
         num_mps: int, 
         alphas: List[int], 
+        dropout: float = 0.0,
         batch_norm: int = False, 
         latent_map: str = 'mix', 
         normalize_output: bool = False,
@@ -43,6 +44,8 @@ class Decoder(nn.Module):
         :param alphas: Alpha value for the leaky relu layer for edge features 
         in each iteration of message passing.
         :type alphas: Union[int, List[int]]
+        :param dropout: Dropout rate, defaults to 0.0.
+        :type dropout: float
         :param batch_norm: Whether to use batch normalization 
         in the edge and node features., defaults to False
         :type batch_norm: int, optional
@@ -101,6 +104,7 @@ class Decoder(nn.Module):
             edge_sizes=self.edge_sizes, 
             num_mps=self.num_mps,
             alphas=alphas, 
+            dropout=dropout,
             batch_norm=batch_norm,
             dtype=self.dtype, 
             device=self.device
