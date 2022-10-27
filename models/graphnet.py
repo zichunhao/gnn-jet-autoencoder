@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import logging
-import types
 
 from utils.const import DEFAULT_DEVICE, DEFAULT_DTYPE, EPS
 
