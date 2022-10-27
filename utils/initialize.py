@@ -45,6 +45,7 @@ def initialize_models(args):
         logging.info(f"Loading model from {model_path} at epoch {args.load_epoch}.")
         try:
             if (model_path / f'weights_encoder/epoch_{args.load_epoch}_encoder_weights.pth').exists():
+                
                 encoder.load_state_dict(torch.load(
                     model_path / f'weights_encoder/epoch_{args.load_epoch}_encoder_weights.pth',
                     map_location=args.device
@@ -54,7 +55,11 @@ def initialize_models(args):
                     map_location=args.device
                 ))
                 epoch = args.load_epoch
+                logging.info(
+                    f"Loaded model from {model_path} at epoch {epoch}.")
             elif (model_path / f'weights_encoder/epoch_{args.load_epoch-1}_encoder_weights.pth').exists():
+                logging.warning(f"No model at epoch {args.load_epoch} found in {model_path}. Searching for epoch {args.load_epoch - 1}.")
+                
                 # load the previous epoch's weights
                 encoder.load_state_dict(torch.load(
                     model_path / f'weights_encoder/epoch_{args.load_epoch-1}_encoder_weights.pth',
@@ -65,7 +70,9 @@ def initialize_models(args):
                     map_location=args.device
                 ))
                 epoch = args.load_epoch - 1
-            elif (model_path / f'weights_encoder/best.pth').exists():
+                logging.info(f"Loaded model from {model_path} at epoch {epoch}.")
+            elif (model_path / f'weights_encoder/best_encoder_weights.pth').exists():
+                logging.warning(f"No model at epoch {args.load_epoch - 1} found in {model_path}. Searching for best epoch.")
                 logging.warning(f"Epoch {args.load_epoch} Not found. Loading the best model instead of the specified epoch.")
                 encoder.load_state_dict(torch.load(
                     model_path / 'weights_encoder/best_encoder_weights.pth',
@@ -75,12 +82,10 @@ def initialize_models(args):
                     model_path / 'weights_encoder/best_decoder_weights.pth',
                     map_location=args.device
                 ))
-                epoch = "best"
+                logging.info(f"Loaded model from {model_path} at best epoch.")
             else:
-                logging.warning(f"No model at epoch {args.load_epoch} found in {model_path}. Training from scratch.")
+                logging.warning(f"No model at best epoch found in {model_path} Training from scratch.")
                 epoch = "None"
-            
-            logging.info(f"Loaded model from {model_path} at epoch {epoch}.")
         
         except FileNotFoundError:
             logging.warning(f"No model at epoch {args.load_epoch} found in {model_path}. Training from scratch.")
