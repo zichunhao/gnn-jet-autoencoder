@@ -51,7 +51,7 @@ def initialize_models(args):
                     map_location=args.device
                 ))
                 decoder.load_state_dict(torch.load(
-                    model_path / f'weights_encoder/epoch_{args.load_epoch}_decoder_weights.pth',
+                    model_path / f'weights_decoder/epoch_{args.load_epoch}_decoder_weights.pth',
                     map_location=args.device
                 ))
                 epoch = args.load_epoch
@@ -66,7 +66,7 @@ def initialize_models(args):
                     map_location=args.device
                 ))
                 decoder.load_state_dict(torch.load(
-                    model_path / f'weights_encoder/epoch_{args.load_epoch-1}_decoder_weights.pth',
+                    model_path / f'weights_decoder/epoch_{args.load_epoch-1}_decoder_weights.pth',
                     map_location=args.device
                 ))
                 epoch = args.load_epoch - 1
@@ -75,11 +75,11 @@ def initialize_models(args):
                 logging.warning(f"No model at epoch {args.load_epoch - 1} found in {model_path}. Searching for best epoch.")
                 logging.warning(f"Epoch {args.load_epoch} Not found. Loading the best model instead of the specified epoch.")
                 encoder.load_state_dict(torch.load(
-                    model_path / 'weights_encoder/best_encoder_weights.pth',
+                    model_path / 'weights_decoder/best_encoder_weights.pth',
                     map_location=args.device
                 ))
                 decoder.load_state_dict(torch.load(
-                    model_path / 'weights_encoder/best_decoder_weights.pth',
+                    model_path / 'weights_decoder/best_decoder_weights.pth',
                     map_location=args.device
                 ))
                 logging.info(f"Loaded model from {model_path} at best epoch.")
