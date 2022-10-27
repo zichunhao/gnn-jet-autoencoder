@@ -283,7 +283,7 @@ def get_loss(
             polar_coord=args.polar_coord,
             abs_coord=args.abs_coord,
             num_particles=p4_recons.shape[-2],
-            device='cuda' if 'cuda' in str(args.device).lower() else 'cpu'
+            device=args.device.type
         )
         batch_loss = emdloss(p4_target, p4_recons)  # true, output
 
@@ -299,7 +299,7 @@ def get_loss(
             polar_coord=args.polar_coord,
             abs_coord=args.abs_coord,
             num_particles=p4_recons.shape[-2],
-            device='cuda' if 'cuda' in str(args.device).lower() else 'cpu'
+            device=args.device.type
         )
         batch_loss = args.chamfer_loss_weight * chamferloss(
             p4_recons, p4_target, 

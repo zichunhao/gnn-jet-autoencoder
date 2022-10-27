@@ -4,6 +4,8 @@ import jetnet
 import torch
 from torch import nn
 
+from utils.const import DEFAULT_DEVICE
+
 EPS = 1e-16
 
 
@@ -12,8 +14,10 @@ class EMDLoss(nn.Module):
 
     def __init__(
         self,
+        num_particles: int,
         polar_coord: bool = False,
         abs_coord: bool = True,
+        device: Union[str, torch.device] = DEFAULT_DEVICE.type,
         *args, **kwargs
     ):
         """
@@ -27,7 +31,17 @@ class EMDLoss(nn.Module):
         - (polar_coord, abs_coord) = (False, False): (px_rel, py_rel, pz_rel)
         """
         super(EMDLoss, self).__init__()
-        self.emd_loss = jetnet.losses.EMDLoss(*args, **kwargs)
+        if isinstance(device, str):
+            pass
+        elif isinstance(device, torch.device):
+            device = device.type
+            
+        self.emd_loss = jetnet.losses.EMDLoss(
+            num_particles=num_particles,
+            device=args.device.type,
+            *args, 
+            **kwargs
+        )
         self.polar_coord = polar_coord
         self.abs_coord = abs_coord
 
