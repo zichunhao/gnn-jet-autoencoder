@@ -156,6 +156,8 @@ def anomaly_scores_sig_bkg(
     bkg_recons: torch.Tensor,
     bkg_target: torch.Tensor,
     include_emd: bool = True,
+    polar_coord: bool = True,
+    abs_coord: bool = False,
     batch_size: int = -1
 ) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
     """Compute anomaly scores for signal and background
@@ -171,6 +173,14 @@ def anomaly_scores_sig_bkg(
     :type bkg_target: torch.Tensor
     :param include_emd: Whether to include EMD loss as score, defaults to True
     :type include_emd: bool, optional
+    :param polar_coord: Use polar coordinates, defaults to True
+    :type polar_coord: bool, optional
+    :param abs_coord: Use absolute coordinates, defaults to False
+        - (polar_coord, abs_coord) = (True, True): (pt, eta, phi)
+        - (polar_coord, abs_coord) = (True, False): (pt_rel, eta_rel, phi_rel)
+        - (polar_coord, abs_coord) = (False, True): (px, py, pz)
+        - (polar_coord, abs_coord) = (False, False): (px_rel, py_rel, pz_rel)
+    :type abs_coord: bool, optional
     :param batch_size: Batch size, defaults to -1.
     If it is a non-positive number or None, then the data will no be batched. 
     :type batch_size: int, optional
@@ -183,13 +193,17 @@ def anomaly_scores_sig_bkg(
         sig_recons,
         sig_target,
         include_emd=include_emd,
-        batch_size=batch_size
+        batch_size=batch_size,
+        polar_coord=polar_coord,
+        abs_coord=abs_coord
     )
     bkg_scores = anomaly_scores(
         bkg_recons,
         bkg_target,
         include_emd=include_emd,
-        batch_size=batch_size
+        batch_size=batch_size,
+        polar_coord=polar_coord,
+        abs_coord=abs_coord
     )
     scores = {
         k: np.concatenate([sig_scores[k], bkg_scores[k]])
@@ -221,12 +235,14 @@ def anomaly_scores(
     :param batch_size: Batch size, defaults to -1.
     If it is a non-positive number or None, then the data will no be batched. 
     :type batch_size: int, optional
-    :param polar_coord: Use polar coordinates for EMD loss.
-    :param abs_coord: Use absolute coordinates for EMD loss.
+    :param polar_coord: Use polar coordinates, defaults to True
+    :type polar_coord: bool, optional
+    :param abs_coord: Use absolute coordinates, defaults to False
         - (polar_coord, abs_coord) = (True, True): (pt, eta, phi)
         - (polar_coord, abs_coord) = (True, False): (pt_rel, eta_rel, phi_rel)
         - (polar_coord, abs_coord) = (False, True): (px, py, pz)
         - (polar_coord, abs_coord) = (False, False): (px_rel, py_rel, pz_rel)
+    :type abs_coord: bool, optional
     :return: A dictionary with the scores (value) for each type (key).
     :rtype: Dict[str, np.ndarray]
     """

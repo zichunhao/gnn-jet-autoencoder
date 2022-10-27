@@ -108,6 +108,8 @@ def test(args):
                 bkg_recons,
                 bkg_target,
                 include_emd=True,
+                polar_coord=args.polar_coord,
+                abs_coord=args.abs_coord,
                 batch_size=args.test_batch_size,
             )
             get_ROC_AUC(scores_dict, true_labels, save_path=path_ad_single)
