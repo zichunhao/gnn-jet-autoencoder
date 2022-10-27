@@ -43,19 +43,16 @@ def train(
 
     target_data = []
     recons_data = []
+    latent_data = []
     epoch_total_loss = 0
 
     for i, data in enumerate(tqdm(loader)):
         p4_target = data.to(args.dtype)
-        p4_recons = decoder(
-            encoder(p4_target, metric=args.encoder_metric),
-            metric=args.decoder_metric
-        )
-        recons_data.append(p4_recons.cpu().detach())
+        latent = encoder(p4_target, metric=args.encoder_metric)
+        p4_recons = decoder(latent, metric=args.decoder_metric)
 
         if device is not None:
             p4_target = p4_target.to(device=device)
-        target_data.append(p4_target.cpu().detach())
 
         batch_loss = get_loss(
             args, 
@@ -83,9 +80,14 @@ def train(
                     decoder.state_dict(),
                     osp.join(decoder_weight_path, f"epoch_{epoch}_decoder_weights.pth")
                 )
+        
+        target_data.append(p4_target.cpu().detach())
+        latent_data.append(latent.cpu().detach())
+        recons_data.append(p4_recons.cpu().detach())
 
-    recons_data = torch.cat(recons_data, dim=0)
     target_data = torch.cat(target_data, dim=0)
+    latent_data = torch.cat(latent_data, dim=0)
+    recons_data = torch.cat(recons_data, dim=0)
 
     epoch_avg_loss = epoch_total_loss / len(loader)
 
@@ -94,7 +96,7 @@ def train(
         torch.save(encoder.state_dict(), osp.join(encoder_weight_path, f"epoch_{epoch}_encoder_weights.pth"))
         torch.save(decoder.state_dict(), osp.join(decoder_weight_path, f"epoch_{epoch}_decoder_weights.pth"))
 
-    return epoch_avg_loss, recons_data, target_data
+    return epoch_avg_loss, recons_data, target_data, latent_data
 
 
 @torch.no_grad()
@@ -108,12 +110,12 @@ def validate(
     device: Optional[torch.device] = None
 ) -> Tuple[float, torch.Tensor, torch.Tensor]:
     with torch.no_grad():
-        epoch_avg_loss, recons_data, target_data = train(
+        epoch_avg_loss, recons_data, target_data, latent_data = train(
             args, loader=loader, encoder=encoder, decoder=decoder,
             optimizer_encoder=None, optimizer_decoder=None,
             epoch=epoch, outpath=outpath, is_train=False, device=device
         )
-    return epoch_avg_loss, recons_data, target_data
+    return epoch_avg_loss, recons_data, target_data, latent_data
 
 
 def train_loop(
@@ -164,13 +166,13 @@ def train_loop(
 
         # Training
         start = time.time()
-        train_avg_loss, train_recons, train_target = train(
+        train_avg_loss, train_recons, train_target, train_latent = train(
             args, train_loader, encoder, decoder,
             optimizer_encoder, optimizer_decoder, epoch,
             outpath, is_train=True, device=device
         )
         # Validation
-        valid_avg_loss, valid_recons, valid_target = validate(
+        valid_avg_loss, valid_recons, valid_target, valid_latent = validate(
             args, valid_loader, encoder, decoder,
             epoch, outpath, device=device
         )

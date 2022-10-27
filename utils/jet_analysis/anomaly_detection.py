@@ -15,20 +15,14 @@ EPS_DEFAULT = 1e-16
 # keys for scores
 CHAMFER_PARTICLE_CARTESIAN = "particle, Cartesian, Chamfer distance"
 CHAMFER_PARTICLE_POLAR = "particle, polar, Chamfer distance"
-CHAMFER_PARTICLE_NORMALIZED_CARTESIAN = "particle, normalized Cartesian, Chamfer distance"
-CHAMFER_PARTICLE_NORMALIZED_POLAR = "particle, normalized polar, Chamfer distance"
 CHAMFER_PARTICLE_RELATIVE_POLAR = "particle, relative polar, Chamfer distance"
 
 HUNGARIAN_PARTICLE_CARTESIAN = "particle, Cartesian, Hungarian distance"
 HUNGARIAN_PARTICLE_POLAR = "particle, polar, Hungarian distance"
-HUNGARIAN_PARTICLE_NORMALIZED_CARTESIAN = "particle, normalized Cartesian, Hungarian distance"
-HUNGARIAN_PARTICLE_NORMALIZED_POLAR = "particle, normalized polar, Hungarian distance"
 HUNGARIAN_PARTICLE_RELATIVE_POLAR = "particle, relative polar, Hungarian distance"
 
 MSE_PARTICLE_CARTESIAN = "particle, Cartesian, MSE"
 MSE_PARTICLE_POLAR = "particle, polar, MSE"
-MSE_PARTICLE_NORMALIZED_CARTESIAN = "particle, normalized Cartesian, MSE"
-MSE_PARTICLE_NORMALIZED_POLAR = "particle, normalized polar, MSE"
 MSE_PARTICLE_RELATIVE_POLAR = "particle, relative polar, MSE"
 
 JET_CARTESIAN = "jet, Cartesian"
@@ -159,12 +153,8 @@ def plot_roc_curves(
 def anomaly_scores_sig_bkg(
     sig_recons: torch.Tensor,
     sig_target: torch.Tensor,
-    sig_recons_normalized: torch.Tensor,
-    sig_target_normalized: torch.Tensor,
     bkg_recons: torch.Tensor,
     bkg_target: torch.Tensor,
-    bkg_recons_normalized: torch.Tensor,
-    bkg_target_normalized: torch.Tensor,
     include_emd: bool = True,
     batch_size: int = -1
 ) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
@@ -175,18 +165,10 @@ def anomaly_scores_sig_bkg(
     :type sig_recons: torch.Tensor
     :param sig_target: Target signal jets.
     :type sig_target: torch.Tensor
-    :param sig_recons_normalized: Reconstructed normalized signal jets.
-    :type sig_recons_normalized: torch.Tensor
-    :param sig_target_normalized: Reconstructed normalized signal jets.
-    :type sig_target_normalized: torch.Tensor
     :param bkg_recons: Reconstructed background jets.
     :type bkg_recons: torch.Tensor
     :param bkg_target: Target background jets.
     :type bkg_target: torch.Tensor
-    :param bkg_recons_normalized: Reconstructed normalized background jets.
-    :type bkg_recons_normalized: torch.Tensor
-    :param bkg_target_normalized: Target normalized background jets.
-    :type bkg_target_normalized: torch.Tensor
     :param include_emd: Whether to include EMD loss as score, defaults to True
     :type include_emd: bool, optional
     :param batch_size: Batch size, defaults to -1.
@@ -200,16 +182,12 @@ def anomaly_scores_sig_bkg(
     sig_scores = anomaly_scores(
         sig_recons,
         sig_target,
-        sig_recons_normalized,
-        sig_target_normalized,
         include_emd=include_emd,
         batch_size=batch_size
     )
     bkg_scores = anomaly_scores(
         bkg_recons,
         bkg_target,
-        bkg_recons_normalized,
-        bkg_target_normalized,
         include_emd=include_emd,
         batch_size=batch_size
     )
@@ -218,8 +196,8 @@ def anomaly_scores_sig_bkg(
         for k in sig_scores.keys()
     }
     true_labels = np.concatenate([
-        np.ones_like(sig_scores[CHAMFER_PARTICLE_CARTESIAN]),
-        -np.ones_like(bkg_scores[CHAMFER_PARTICLE_CARTESIAN])
+        np.ones_like(sig_scores[list(sig_scores.keys())[0]]),
+        -np.ones_like(bkg_scores[list(bkg_scores.keys())[0]])
     ])
     return scores, true_labels, sig_scores, bkg_scores
 
@@ -227,10 +205,10 @@ def anomaly_scores_sig_bkg(
 def anomaly_scores(
     recons: torch.Tensor,
     target: torch.Tensor,
-    recons_normalized: torch.Tensor,
-    target_normalized: torch.Tensor,
     include_emd: bool = True,
-    batch_size: int = -1
+    batch_size: int = -1,
+    polar_coord: bool = True,
+    abs_coord: bool = False
 ) -> Dict[str, np.ndarray]:
     """Get anomaly scores for a batch of jets.
 
@@ -238,69 +216,96 @@ def anomaly_scores(
     :type recons: torch.Tensor
     :param target: Target jets.
     :type target: torch.Tensor
-    :param recons_normalized: Normalized reconstructed jets.
-    :type recons_normalized: torch.Tensor
-    :param target_normalized: Normalized target jets.
-    :type target_normalized: torch.Tensor
     :param include_emd: Whether to include EMD loss as a score, defaults to True
     :type include_emd: bool, optional
     :param batch_size: Batch size, defaults to -1.
     If it is a non-positive number or None, then the data will no be batched. 
     :type batch_size: int, optional
+    :param polar_coord: Use polar coordinates for EMD loss.
+    :param abs_coord: Use absolute coordinates for EMD loss.
+        - (polar_coord, abs_coord) = (True, True): (pt, eta, phi)
+        - (polar_coord, abs_coord) = (True, False): (pt_rel, eta_rel, phi_rel)
+        - (polar_coord, abs_coord) = (False, True): (px, py, pz)
+        - (polar_coord, abs_coord) = (False, False): (px_rel, py_rel, pz_rel)
     :return: A dictionary with the scores (value) for each type (key).
     :rtype: Dict[str, np.ndarray]
     """
+    
+    if not abs_coord:
+        if polar_coord:
+            # relative polar
+            recons_polar_rel = recons
+            target_polar_rel = target
+        else:
+            # relative cartesian
+            recons_polar_rel = get_p4_polar(recons)
+            target_polar_rel = get_p4_polar(target)
+        scores = {
+            CHAMFER_PARTICLE_RELATIVE_POLAR: chamfer(recons_polar_rel, target_polar_rel, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
+            HUNGARIAN_PARTICLE_RELATIVE_POLAR: hungarian(recons_polar_rel, target_polar_rel, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
+            MSE_PARTICLE_RELATIVE_POLAR: mse(recons_polar_rel, target_polar_rel).mean(-1).cpu().detach().numpy(),
+        }
+        if include_emd:
+            try:
+                scores[EMD_RELATIVE] = emd_loss(target_polar_rel, recons_polar_rel)
+            except RuntimeError as e:
+                logging.error(e)
+                pass
+    else:  # absolute coordinates
+        if polar_coord:
+            recons_polar, target_polar = recons, target
+            recons = get_p4_cartesian(recons)
+            target = get_p4_cartesian(target)
+        else:  # absolute/lab cartesian
+            # prepare inputs
+            recons_polar = get_p4_polar(recons)
+            target_polar = get_p4_polar(target)
 
-    # prepare inputs
-    recons_polar = get_p4_polar(recons)
-    target_polar = get_p4_polar(target)
+        recons_jet = get_jet_p4(recons)
+        target_jet = get_jet_p4(target)
+        recons_jet_polar = get_p4_polar(recons_jet)
+        target_jet_polar = get_p4_polar(target_jet)
 
-    recons_normalized_polar = get_p4_polar(recons_normalized)
-    target_normalized_polar = get_p4_polar(target_normalized)
+        target_polar_rel = get_polar_rel(target_polar, target_jet_polar)
+        recons_polar_rel = get_polar_rel(recons_polar, recons_jet_polar)
 
-    recons_jet = get_jet_p4(recons)
-    target_jet = get_jet_p4(target)
-    recons_jet_polar = get_p4_polar(recons_jet)
-    target_jet_polar = get_p4_polar(target_jet)
+        recons_jet = recons_jet.view(-1, 4)
+        target_jet = target_jet.view(-1, 4)
+        recons_jet_polar = recons_jet_polar.view(-1, 4)
+        target_jet_polar = target_jet_polar.view(-1, 4)
 
-    target_polar_rel = get_polar_rel(target_polar, target_jet_polar)
-    recons_polar_rel = get_polar_rel(recons_polar, recons_jet_polar)
+        scores = {
+            # average over jets
+            # Chamfer
+            CHAMFER_PARTICLE_CARTESIAN: chamfer(recons, target, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
+            CHAMFER_PARTICLE_POLAR: chamfer(recons_polar, target_polar, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
+            CHAMFER_PARTICLE_RELATIVE_POLAR: chamfer(recons_polar_rel, target_polar_rel, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
+            # Hungarian (linear assignment)
+            HUNGARIAN_PARTICLE_CARTESIAN: hungarian(recons, target, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
+            HUNGARIAN_PARTICLE_POLAR: hungarian(recons_polar, target_polar, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
+            HUNGARIAN_PARTICLE_RELATIVE_POLAR: hungarian(recons_polar_rel, target_polar_rel, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
+            # MSE
+            MSE_PARTICLE_CARTESIAN: mse(recons, target).mean(-1).cpu().detach().numpy(),
+            MSE_PARTICLE_POLAR: mse(recons_polar, target_polar).mean(-1).cpu().detach().numpy(),
+            MSE_PARTICLE_RELATIVE_POLAR: mse(recons_polar_rel, target_polar_rel).mean(-1).cpu().detach().numpy(),
+            # metrics based on jets
+            JET_CARTESIAN: mse(recons_jet, target_jet).cpu().detach().numpy(),
+            JET_POLAR: mse(recons_jet, target_jet).cpu().detach().numpy(),
+            # Lorentz invariant score
+            JET_LORENTZ: mse_lorentz(recons_jet, target_jet).cpu().detach().numpy()
+        }
 
-    recons_jet = recons_jet.view(-1, 4)
-    target_jet = target_jet.view(-1, 4)
-    recons_jet_polar = recons_jet_polar.view(-1, 4)
-    target_jet_polar = target_jet_polar.view(-1, 4)
-
-    scores = {
-        # average over jets
-        # Chamfer
-        CHAMFER_PARTICLE_CARTESIAN: chamfer(recons, target, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-        CHAMFER_PARTICLE_POLAR: chamfer(recons_polar, target_polar, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-        CHAMFER_PARTICLE_NORMALIZED_CARTESIAN: chamfer(recons_normalized, target_normalized, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-        CHAMFER_PARTICLE_NORMALIZED_POLAR: chamfer(recons_normalized_polar, target_normalized_polar, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-        CHAMFER_PARTICLE_RELATIVE_POLAR: chamfer(recons_polar_rel, target_polar_rel, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-        # Hungarian (linear assignment)
-        HUNGARIAN_PARTICLE_CARTESIAN: hungarian(recons, target, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-        HUNGARIAN_PARTICLE_POLAR: hungarian(recons_polar, target_polar, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-        HUNGARIAN_PARTICLE_NORMALIZED_CARTESIAN: hungarian(recons_normalized, target_normalized, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-        HUNGARIAN_PARTICLE_NORMALIZED_POLAR: hungarian(recons_normalized_polar, target_normalized_polar, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-        HUNGARIAN_PARTICLE_RELATIVE_POLAR: hungarian(recons_polar_rel, target_polar_rel, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-        # MSE
-        MSE_PARTICLE_CARTESIAN: mse(recons, target).mean(-1).cpu().detach().numpy(),
-        MSE_PARTICLE_POLAR: mse(recons_polar, target_polar).mean(-1).cpu().detach().numpy(),
-        MSE_PARTICLE_NORMALIZED_CARTESIAN: mse(recons_normalized, target_normalized).mean(-1).cpu().detach().numpy(),
-        MSE_PARTICLE_NORMALIZED_POLAR: mse(recons_normalized_polar, target_normalized_polar).mean(-1).cpu().detach().numpy(),
-        MSE_PARTICLE_RELATIVE_POLAR: mse(recons_polar_rel, target_polar_rel).mean(-1).cpu().detach().numpy(),
-        # metrics based on jets
-        JET_CARTESIAN: mse(recons_jet, target_jet).cpu().detach().numpy(),
-        JET_POLAR: mse(recons_jet, target_jet).cpu().detach().numpy(),
-        # Lorentz invariant score
-        JET_LORENTZ: mse_lorentz(recons_jet, target_jet).cpu().detach().numpy()
-    }
-
-    if include_emd:
-        scores[EMD] = emd_loss(recons_polar, target_polar)
-        scores[EMD_RELATIVE] = emd_loss(target_polar_rel, recons_polar_rel)
+        if include_emd:
+            try:
+                scores[EMD] = emd_loss(recons_polar, target_polar)
+            except RuntimeError as e:
+                logging.error(e)
+                pass
+            try:
+                scores[EMD_RELATIVE] = emd_loss(target_polar_rel, recons_polar_rel)
+            except RuntimeError as e:
+                logging.error(e)
+                pass
 
     return scores
 
@@ -542,6 +547,14 @@ def get_p4_polar(
         eta = arcsinh(pz / (pT + eps))
     phi = torch.atan2(py+eps, px+eps)
     return torch.stack((E, pT, eta, phi), dim=-1)
+
+def get_p4_cartesian(p: torch.Tensor) -> torch.Tensor:
+    """(E, pT, eta, phi) -> (E, px, py, pz)"""
+    E, pT, eta, phi = p.unbind(-1)
+    px = pT * torch.cos(phi)
+    py = pT * torch.sin(phi)
+    pz = pT * torch.sinh(eta)
+    return torch.stack((E, px, py, pz), dim=-1)
 
 
 def get_jet_p4(p: torch.Tensor) -> torch.Tensor:

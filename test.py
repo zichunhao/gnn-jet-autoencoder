@@ -7,11 +7,11 @@ import numpy as np
 from utils.argparse_utils import get_bool, get_device, get_dtype
 from utils.argparse_utils import (
     parse_model_settings,
-    parse_eval_settings,
-    parse_data_settings,
+    parse_eval_settings
 )
 from utils.jet_analysis import plot_p, get_ROC_AUC, anomaly_scores_sig_bkg
 from utils.initialize import initialize_models, initialize_test_dataloader
+from utils.permutation import PermutationTest
 from utils.utils import make_dir, get_best_epoch
 from utils.train import validate
 
@@ -23,75 +23,50 @@ def test(args):
 
     # Load models
     encoder, decoder = initialize_models(args)
-
-    encoder_path = osp.join(
-        args.model_path,
-        f"weights_encoder/epoch_{args.load_epoch}_encoder_weights.pth",
+    
+    # permutation test
+    permutation_test = PermutationTest(
+        encoder=encoder, 
+        decoder=decoder,
+        device=args.device,
+        dtype=args.dtype
     )
-    decoder_path = osp.join(
-        args.model_path,
-        f"weights_decoder/epoch_{args.load_epoch}_decoder_weights.pth",
-    )
-    encoder.load_state_dict(torch.load(encoder_path, map_location=args.device))
-    decoder.load_state_dict(torch.load(decoder_path, map_location=args.device))
+    perm_result = permutation_test(test_loader, verbose=False)
+    logging.info(f"Permutation invariance: {perm_result['invariance']}")
+    logging.info(f"Permutation equivariance: {perm_result['equivariance']}")
+    
 
-    if args.plot_only:
-        test_path = osp.join(
-            args.model_path, f"test_{args.jet_type}_jets_{args.load_epoch}"
-        )
-        try:
-            # we do not need to load latent space or normalization factors
-            recons = torch.load(osp.join(test_path, "reconstructed.pt")).to(args.device)
-            target = torch.load(osp.join(test_path, "target.pt")).to(args.device)
-        except FileNotFoundError:
-            logging.warning("Inference results not found. Run inference first.")
-            recons, target, latent, norm_factors = validate(
-                args,
-                test_loader,
-                encoder,
-                decoder,
-                args.load_epoch,
-                args.model_path,
-                args.device,
-                for_test=True,
-            )
-            test_path = make_dir(
-                osp.join(
-                    args.model_path, f"test_{args.jet_type}_jets_{args.load_epoch}"
-                )
-            )
-            torch.save(target, osp.join(test_path, "target.pt"))
-            torch.save(recons, osp.join(test_path, "reconstructed.pt"))
-            torch.save(latent, osp.join(test_path, "latent.pt"))
-            torch.save(norm_factors, osp.join(test_path, "norm_factors.pt"))
-            logging.info(f"Data saved exported to {test_path}.")
-    else:
-        recons, target, latent, norm_factors = validate(
-            args,
-            test_loader,
-            encoder,
-            decoder,
-            args.load_epoch,
-            args.model_path,
-            args.device,
-            for_test=True,
-        )
-        test_path = make_dir(
-            osp.join(args.model_path, f"test_{args.jet_type}_jets_{args.load_epoch}")
-        )
-        torch.save(target, osp.join(test_path, "target.pt"))
-        torch.save(recons, osp.join(test_path, "reconstructed.pt"))
-        torch.save(latent, osp.join(test_path, "latent.pt"))
-        torch.save(norm_factors, osp.join(test_path, "norm_factors.pt"))
-        logging.info(f"Data saved exported to {test_path}.")
+    _, recons, target, latent = validate(
+        args,
+        test_loader,
+        encoder,
+        decoder,
+        args.load_epoch,
+        args.load_path,
+        args.device,
+    )
+    test_path = make_dir(
+        osp.join(args.load_path, f"test_{args.jet_type}_jets_{args.load_epoch}")
+    )
+    torch.save(target, osp.join(test_path, "target.pt"))
+    torch.save(recons, osp.join(test_path, "reconstructed.pt"))
+    torch.save(latent, osp.join(test_path, "latent.pt"))
+    logging.info(f"Data saved exported to {test_path}.")
 
     fig_path = make_dir(osp.join(test_path, "jet_plots"))
     if args.abs_coord and (args.unit.lower() == "tev"):
         # Convert to GeV for plotting
-        recons *= 1000
-        target *= 1000
+        scale = 1000
+    else:
+        scale = 1
 
-    jet_images_same_norm, jet_images = plot_p(args, target, recons, fig_path)
+    jet_images_same_norm, jet_images = plot_p(
+        args, 
+        target*scale, 
+        recons*scale, 
+        fig_path, 
+        jet_type=args.jet_type
+    )
     torch.save(jet_images_same_norm, osp.join(test_path, "jet_images_same_norm.pt"))
     torch.save(jet_images, osp.join(test_path, "jet_images.pt"))
     logging.info("Plots finished.")
@@ -100,25 +75,14 @@ def test(args):
     if (args.anomaly_detection) and (len(args.signal_paths) > 0):
         logging.info(f"Anomaly detection started. Signal paths: {args.signal_paths}")
         path_ad = Path(make_dir(osp.join(test_path, "anomaly_detection")))
-        eps = 1e-16
-        bkg_recons, bkg_target, bkg_norms = recons, target, norm_factors
-        if args.abs_coord and (args.unit.lower() == "tev"):
-            # convert back for consistent unit
-            bkg_recons = bkg_recons / 1000
-            bkg_target = bkg_target / 1000
-        bkg_recons_normalized = bkg_recons / (bkg_norms + eps)
-        bkg_target_normalized = bkg_target / (bkg_norms + eps)
+        bkg_recons, bkg_target = recons, target
 
         torch.save(bkg_recons, path_ad / f"{args.jet_type}_recons.pt")
         torch.save(bkg_target, path_ad / f"{args.jet_type}_target.pt")
-        torch.save(bkg_norms, path_ad / f"{args.jet_type}_norms.pt")
         torch.save(latent, path_ad / f"{args.jet_type}_latent.pt")
 
         sig_recons_list = []
         sig_target_list = []
-        sig_norms_list = []
-        sig_recons_normalized_list = []
-        sig_target_normalized_list = []
         sig_scores_list = []
 
         # background vs single signal
@@ -128,41 +92,29 @@ def test(args):
             sig_loader = initialize_test_dataloader(
                 paths=signal_path, batch_size=args.test_batch_size
             )
-            sig_recons, sig_target, sig_latent, sig_norms = validate(
+            _, sig_recons, sig_target, sig_latent = validate(
                 args,
                 sig_loader,
                 encoder,
                 decoder,
                 args.load_epoch,
-                args.model_path,
-                args.device,
-                for_test=True,
+                args.load_path,
+                args.device
             )
-
-            sig_recons_normalized = sig_recons / (sig_norms + eps)
-            sig_target_normalized = sig_target / (sig_norms + eps)
 
             scores_dict, true_labels, sig_scores, bkg_scores = anomaly_scores_sig_bkg(
                 sig_recons,
                 sig_target,
-                sig_recons_normalized,
-                sig_target_normalized,
                 bkg_recons,
                 bkg_target,
-                bkg_recons_normalized,
-                bkg_target_normalized,
                 include_emd=True,
                 batch_size=args.test_batch_size,
             )
             get_ROC_AUC(scores_dict, true_labels, save_path=path_ad_single)
             plot_p(
                 args,
-                sig_target * 1000
-                if args.abs_coord and (args.unit.lower() == "tev")
-                else sig_target,
-                sig_recons * 1000
-                if args.abs_coord and (args.unit.lower() == "tev")
-                else sig_recons,
+                sig_target * scale,
+                sig_recons * scale,
                 save_dir=path_ad_single,
                 jet_type=signal_type,
             )
@@ -170,24 +122,17 @@ def test(args):
             # add to list
             sig_recons_list.append(sig_recons)
             sig_target_list.append(sig_target)
-            sig_norms_list.append(sig_norms)
-            sig_recons_normalized_list.append(sig_recons_normalized)
-            sig_target_normalized_list.append(sig_target_normalized)
             sig_scores_list.append(sig_scores)
 
             # save results
             torch.save(sig_recons, path_ad_single / f"{signal_type}_recons.pt")
             torch.save(sig_target, path_ad_single / f"{signal_type}_target.pt")
-            torch.save(sig_norms, path_ad_single / f"{signal_type}_norms.pt")
             torch.save(sig_latent, path_ad_single / f"{signal_type}_latent.pt")
 
         # background vs. all signals
         logging.info(f"Anomaly detection: {args.jet_type} vs {args.signal_types}.")
         sig_recons = torch.cat(sig_recons_list, dim=0)
         sig_target = torch.cat(sig_target_list, dim=0)
-        sig_norms = torch.cat(sig_norms_list, dim=0)
-        sig_recons_normalized = torch.cat(sig_recons_normalized_list, dim=0)
-        sig_target_normalized = torch.cat(sig_target_normalized_list, dim=0)
 
         # concatenate all signal scores
         sig_scores = {
@@ -213,40 +158,76 @@ def test(args):
 def setup_argparse():
     parser = argparse.ArgumentParser(description="GNN Autoencoder on Test Dataset")
 
-    # Data
-    parse_data_settings(parser)
-
     # Model
     parse_model_settings(parser)
+    
+    # Data
+    parser.add_argument(
+        '--test-data-paths', type=str, nargs='+', 
+        help='Paths of the test data.'
+    )
+    parser.add_argument(
+        '-j', '--jet-type', type=str, default='qcd',
+        help="Jet type to train. Options: ('qcd', 'g', 'q', 't', 'w', 'z')."
+    )
+    parser.add_argument(
+        '-tbs', '--test-batch-size', type=int, default=128, metavar='',
+        help='Test batch size.'
+    )
+    parser.add_argument(
+        '--unit', type=str, default='TeV',
+        help="The unit of momenta. Choices: ('GeV', 'TeV'). Default: TeV. "
+    )
+    parser.add_argument(
+        '--abs-coord', type=get_bool, default=False, metavar='',
+        help='Whether the data is in absolute coordinates. False when relative coordinates are used.'
+    )
+    parser.add_argument(
+        '--polar-coord', type=get_bool, default=True, metavar='',
+        help='Whether the data is in polar coordinates (pt, eta, phi). False when Cartesian coordinates are used.'
+    )
+    parser.add_argument(
+        '--normalized', type=get_bool, default=False, metavar='',
+        help='Whether the data is normalized. False when unnormalized data is used.'
+    )
+    
+    parser.add_argument(
+        '--device', type=get_device, default=get_device('-1'), metavar='',
+        help="Device to which the model is initialized. Options: ('gpu', 'cpu', 'cuda', '-1'). "
+        "Default: -1, which means deciding device based on whether gpu is available."
+    )
+    parser.add_argument(
+        '--dtype', type=get_dtype, default=torch.float64, metavar='',
+        help="Data type to which the model is initialized. Options: ('float', 'float64', 'double'). Default: torch.float64"
+    )
+
+    
 
     # Test
     parser.add_argument(
-        "--device",
-        type=get_device,
-        default=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-        metavar="",
-        help="Device to which the model is initialized. Options: ('gpu', 'cpu', 'cuda', '-1')."
-        "Default: -1, which means deciding device based on whether gpu is available.",
+        '--load-path', type=str, required=True, metavar='',
+        help='Path of the trained model to load.'
     )
     parser.add_argument(
-        "--dtype",
-        type=get_dtype,
-        default=torch.float64,
-        metavar="",
-        help="Data type to which the model is initialized. Options: ('float', 'float64', 'double'). Default: float64",
+        '--load-epoch', type=int, default=-1, metavar='',
+        help='Epoch number of the trained model to load.'
     )
     parser.add_argument(
-        "--plot-only",
-        action="store_true",
-        default=False,
-        help="Only plot the results without the inference. If inference results are not found, run inference first.",
+        '--loss-choice', type=str, default='ChamferLoss', metavar='',
+        help="Choice of loss function. Options: ('ChamferLoss', 'EMDLoss', 'hybrid')"
     )
     parser.add_argument(
-        "--loss-choice",
-        type=str,
-        default="ChamferLoss",
-        metavar="",
-        help="Choice of loss function. Options: ('ChamferLoss', 'EMDLoss', 'hybrid')",
+        '--loss-norm-choice', type=str, default='cartesian', metavar='',
+        help="Choice of calculating the norms of 4-vectors when calculating the loss. "
+        "Options: ['cartesian', 'minkowskian', 'polar']. \n"
+        "'cartesian': (+, +, +, +). \n"
+        "'minkowskian': (+, -, -, -) \n"
+        "'polar': convert to (E, pt, eta, phi) paired with metric (+, +, +, +) \n"
+        "Default: 'cartesian.'"
+    )
+    parser.add_argument(
+        '--chamfer-jet-features-weight', type=float, default=1,
+        help="The weight of jet momenta when adding to the particle momenta chamfer loss."
     )
     parser.add_argument(
         "--chamfer-jet-features",
@@ -254,23 +235,6 @@ def setup_argparse():
         default=True,
         help="Whether to take into the jet features.",
     )
-
-    # Load models
-    parser.add_argument(
-        "--model-path",
-        type=str,
-        default=None,
-        metavar="",
-        help="Path of the trained model to load and test.",
-    )
-    parser.add_argument(
-        "--load-epoch",
-        type=int,
-        default=-1,
-        metavar="",
-        help="Epoch number of the trained model to load. -1 for loading weights in the best model.",
-    )
-
     # Plots
     parse_eval_settings(parser)
 
@@ -315,12 +279,12 @@ def setup_argparse():
     )
 
     args = parser.parse_args()
-
+    args.load_to_train = True
     if args.load_epoch < 0:
-        args.load_epoch = get_best_epoch(args.model_path, num=args.load_epoch)
-    if args.model_path is None:
+        args.load_epoch = get_best_epoch(args.load_path, num=args.load_epoch)
+    if args.load_path is None:
         raise ValueError("--model-path needs to be specified.")
-
+    args.l1_lambda = args.l2_lambda = 0
     return args
 
 

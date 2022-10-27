@@ -166,7 +166,7 @@ def initialize_test_dataloader(
     vec_dims: int = 3
 ) -> DataLoader:
     logging.info(f"Loading from {paths}")
-    if isinstance(paths, Iterable):
+    if isinstance(paths, (list, tuple)):
         # load data from files
         data_test_list = []
         for path in paths:
