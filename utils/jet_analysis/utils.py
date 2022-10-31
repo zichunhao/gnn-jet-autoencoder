@@ -377,8 +377,22 @@ def get_stats(res, bins):
 
     kurtosis = stats.kurtosis(res)
     kurtosis = None if np.isnan(kurtosis) else kurtosis
+    
+    # outlier insensitive measures
+    med = np.median(res)
+    quartile_first = np.quantile(res, 0.25)
+    quartile_third = np.quantile(res, 0.75)
+    mad = stats.median_absolute_deviation(res)
+    # interdecile range
+    idr = np.quantile(res, 0.9) - np.quantile(res, 0.1)
 
     return {
+        'median': med,
+        'IQR': quartile_third - quartile_first,
+        'first_quartile': quartile_first,
+        'third_quartile': quartile_third,
+        'IDR': idr,
+        'MAD': mad,
         'mean': mean,
         'max': max_val,
         'min': min_val,

@@ -57,8 +57,9 @@ def plot_jet_recon_err(
 
             if not custom_jet_recons_ranges:
             # Find the range based on the FWHM
-                FWHM = stats['FWHM']
-                bins_suitable = np.linspace(-1.5*FWHM, 1.5*FWHM, NUM_BINS)
+                median = stats['median']
+                iqr = stats['IQR']
+                bins_suitable = np.linspace(median-4*iqr, median+4*iqr, NUM_BINS)
                 ax.hist(rel_err, bins=bins_suitable, histtype='step', stacked=True)
             else:
                 ax.hist(rel_err, bins=bins, histtype='step', stacked=True)

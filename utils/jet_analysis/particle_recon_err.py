@@ -5,31 +5,31 @@ import matplotlib.pyplot as plt
 import os.path as osp
 from utils.utils import make_dir
 from .utils import get_p_polar_tensor, get_stats, NUM_BINS, PLOT_FONT_SIZE, DEVICE
-import scipy.optimize as optimize
+from scipy import optimize
+from scipy import stats
 import logging
 import json
 
 FIGSIZE = (12, 8)
-LABELS_ABS_COORD = ((r'$p_x$', r'$p_y$', r'$p_z$'),
-                    (r'$p_\mathrm{T}$', r'$\eta$', r'$\phi$'))
+LABELS_ABS_COORD = ((r'$p_x$', r'$p_y$', r'$p_z$'), (r'$p_\mathrm{T}$', r'$\eta$', r'$\phi$'))
 LABELS_REL_COORD = ((r'$p_x^\mathrm{rel}$', r'$p_y^\mathrm{rel}$', r'$p_z^\mathrm{rel}$'),
                     (r'$p_\mathrm{T}^\mathrm{rel}$', r'$\eta^\mathrm{rel}$', r'$\phi^\mathrm{rel}$'))
 
 
 def plot_particle_recon_err(
-    p_target: Union[np.ndarray, torch.Tensor],
-    p_recons: Union[np.ndarray, torch.Tensor],
+    p_target: Union[np.ndarray, torch.Tensor], 
+    p_recons: Union[np.ndarray, torch.Tensor], 
     abs_coord: bool,
     custom_particle_recons_ranges: bool,
-    find_match: bool = True,
+    find_match: bool = True, 
     ranges: Optional[Tuple[
-        Tuple[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+        Tuple[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray], 
               Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]],
-        Tuple[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+        Tuple[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray], 
               Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]
     ]] = None,
-    save_dir: Optional[str] = None,
-    epoch: Optional[int] = None,
+    save_dir: Optional[str] = None, 
+    epoch: Optional[int] = None, 
     show: bool = False
 ) -> None:
     """
@@ -57,19 +57,16 @@ def plot_particle_recon_err(
     :type epoch: Optional[int], optional
     :param show: whether to show plot, defaults to False
     :type show: bool, optional
-    """
+    """    
 
     # Get inputs
-    p_target_cartesian = p_target if (
-        p_target.shape[-1] == 3) else p_target[..., 1:]
-    p_recons_cartesian = p_recons if (
-        p_recons.shape[-1] == 3) else p_recons[..., 1:]
+    p_target_cartesian = p_target if (p_target.shape[-1] == 3) else p_target[..., 1:]
+    p_recons_cartesian = p_recons if (p_recons.shape[-1] == 3) else p_recons[..., 1:]
     p_target_polar = get_p_polar_tensor(p_target)
     p_recons_polar = get_p_polar_tensor(p_recons)
 
     if not find_match:
-        rel_err_cartesian = get_rel_err(
-            p_target_cartesian, p_recons_cartesian).view(-1, 3)
+        rel_err_cartesian = get_rel_err(p_target_cartesian, p_recons_cartesian).view(-1, 3)
         rel_err_polar = get_rel_err(p_target_polar, p_recons_polar).view(-1, 3)
     else:
         rel_err_cartesian, rel_err_polar = get_rel_err_find_match(
@@ -117,22 +114,19 @@ def plot_particle_recon_err(
 
             if not custom_particle_recons_ranges:
                 # Find the range based on the FWHM
-                FWHM = stats['FWHM']
-                bins_suitable = np.linspace(-1.5*FWHM, 1.5*FWHM, NUM_BINS)
+                median = stats['median']
+                iqr = stats['IQR']
+                bins_suitable = np.linspace(median-4*iqr, median+4*iqr, NUM_BINS)
                 ax.hist(res, bins=bins_suitable, histtype='step', stacked=True)
             else:
                 ax.hist(res, bins=bins, histtype='step', stacked=True)
 
             ax.set_xlabel(fr'$\delta${label}')
             ax.set_ylabel('Number of real particles')
-            ax.ticklabel_format(axis="x", style="sci",
-                                scilimits=(-2, 0), useMathText=True)
-            ax.ticklabel_format(axis="y", style="sci",
-                                scilimits=(0, 0), useMathText=True)
-            ax.tick_params(bottom=True, top=True, left=True,
-                           right=True, direction='in')
-            ax.tick_params(labelbottom=True, labeltop=False,
-                           labelleft=True, labelright=False)
+            ax.ticklabel_format(axis="x", style="sci", scilimits=(-2, 0), useMathText=True)
+            ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0), useMathText=True)
+            ax.tick_params(bottom=True, top=True, left=True, right=True, direction='in')
+            ax.tick_params(labelbottom=True, labeltop=False, labelleft=True, labelright=False)
 
             for axis in ('x', 'y'):
                 ax.tick_params(axis=axis, labelsize=PLOT_FONT_SIZE)
@@ -147,8 +141,9 @@ def plot_particle_recon_err(
 
             if not custom_particle_recons_ranges:
                 # Find the range based on the FWHM
-                FWHM = stats['FWHM']
-                bins_suitable = np.linspace(-1.5*FWHM, 1.5*FWHM, NUM_BINS)
+                median = stats['median']
+                iqr = stats['IQR']
+                bins_suitable = np.linspace(median-4*iqr, median+4*iqr, NUM_BINS)
                 ax.hist(p, histtype='step', stacked=True, bins=bins_suitable)
             else:
                 ax.hist(p, histtype='step', stacked=True, bins=bins)
@@ -163,14 +158,11 @@ def plot_particle_recon_err(
                 ax.set_xlabel(f'Reconstructed padded {label}')
 
             ax.set_ylabel('Number of padded particles')
-            ax.ticklabel_format(axis="y", style="sci",
-                                scilimits=(0, 0), useMathText=True)
+            ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0), useMathText=True)
             for axis in ('x', 'y'):
                 ax.tick_params(axis=axis, labelsize=PLOT_FONT_SIZE)
-            ax.tick_params(bottom=True, top=True, left=True,
-                           right=True, direction='in')
-            ax.tick_params(labelbottom=True, labeltop=False,
-                           labelleft=True, labelright=False)
+            ax.tick_params(bottom=True, top=True, left=True, right=True, direction='in')
+            ax.tick_params(labelbottom=True, labeltop=False, labelleft=True, labelright=False)
 
         err_dict[coordinate] = err_dict_coordinate
 
@@ -179,19 +171,15 @@ def plot_particle_recon_err(
 
         if save_dir:
             if epoch is not None:
-                path = make_dir(
-                    osp.join(save_dir, f'particle_reconstruction_errors/{coordinate}'))
-                plt.savefig(
-                    osp.join(path, f'particle_reconstruction_errors_epoch_{epoch+1}.pdf'))
+                path = make_dir(osp.join(save_dir, f'particle_reconstruction_errors/{coordinate}'))
+                plt.savefig(osp.join(path, f'particle_reconstruction_errors_epoch_{epoch+1}.pdf'))
                 dict_path = make_dir(osp.join(path, 'err_dict'))
                 file_name = f'particle_reconstruction_errors_epoch_{epoch+1}.json'
                 with open(osp.join(dict_path, file_name), 'w') as f:
                     json.dump(err_dict, f)
             else:  # Save without creating a subdirectory
-                plt.savefig(
-                    osp.join(save_dir, f'particle_reconstruction_errors_{coordinate}.pdf'))
-                dict_path = osp.join(
-                    save_dir, 'particle_reconstruction_errors.json')
+                plt.savefig(osp.join(save_dir, f'particle_reconstruction_errors_{coordinate}.pdf'))
+                dict_path = osp.join(save_dir, 'particle_reconstruction_errors.json')
                 with open(dict_path, 'w') as f:
                     json.dump(err_dict, f)
         if show:
@@ -203,10 +191,10 @@ def plot_particle_recon_err(
 
 
 def get_rel_err_find_match(
-    p_target_cartesian: torch.Tensor,
-    p_recons_cartesian: torch.Tensor,
-    p_target_polar: torch.Tensor,
-    p_recons_polar: torch.Tensor,
+    p_target_cartesian: torch.Tensor, 
+    p_recons_cartesian: torch.Tensor, 
+    p_target_polar: torch.Tensor, 
+    p_recons_polar: torch.Tensor, 
     gpu: bool = True
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
@@ -220,19 +208,16 @@ def get_rel_err_find_match(
         p_recons_cartesian = p_recons_cartesian.to(DEVICE)
         p_target_polar = p_target_polar.to(DEVICE)
         p_recons_polar = p_recons_polar.to(DEVICE)
-    cost = torch.cdist(p_target_cartesian,
-                       p_recons_cartesian).cpu().detach().numpy()
+    cost = torch.cdist(p_target_cartesian, p_recons_cartesian).cpu().detach().numpy()
 
     rel_err_cartesian_list = []
     rel_err_polar_list = []
     for i in range(len(p_target_cartesian)):
         matching = optimize.linear_sum_assignment(cost[i])
-        rel_err_cartesian = (
-            p_recons_cartesian[i][matching[1]] - p_target_cartesian[i]) / p_target_cartesian[i]
+        rel_err_cartesian = (p_recons_cartesian[i][matching[1]] - p_target_cartesian[i]) / p_target_cartesian[i]
         rel_err_cartesian_list.append(rel_err_cartesian)
 
-        rel_err_polar = (
-            p_recons_polar[i][matching[1]] - p_target_polar[i]) / p_target_polar[i]
+        rel_err_polar = (p_recons_polar[i][matching[1]] - p_target_polar[i]) / p_target_polar[i]
         rel_err_polar_list.append(rel_err_polar)
 
     rel_err_cartesian = torch.stack(rel_err_cartesian_list).view(-1, 3).cpu()
@@ -242,22 +227,22 @@ def get_rel_err_find_match(
 
 
 def get_min_max(
-    err: np.ndarray,
-    alpha: float = 1.5
+    err: np.ndarray, 
+    alpha: float = 4
 ) -> Tuple[Tuple[float, float], ...]:
     num_components = err.shape[-1]
-    means = [np.mean(err[..., i]) for i in range(num_components)]
-    std_devs = [np.std(err[..., i]) for i in range(num_components)]
+    medians = [np.median(err[..., i]) for i in range(num_components)]
+    iqrs = [stats.iqr(err[..., i]) for i in range(num_components)]
     return tuple([
-        (means[i] - alpha * std_devs[i], means[i] + alpha * std_devs[i])
+        (medians[i] - alpha * iqrs[i], medians[i] + alpha * iqrs[i])
         for i in range(num_components)
     ])
 
 
 def get_bins(
-    rel_err_cartesian: Optional[np.ndarray] = None,
-    rel_err_polar: Optional[np.ndarray] = None,
-    p_padded_recons_cartesian: Optional[np.ndarray] = None,
+    rel_err_cartesian: Optional[np.ndarray] = None, 
+    rel_err_polar: Optional[np.ndarray] = None, 
+    p_padded_recons_cartesian: Optional[np.ndarray] = None, 
     p_padded_recons_polar: Optional[np.ndarray] = None
 ):
     """Get bins for reconstruction error plots."""
@@ -307,8 +292,8 @@ def get_bins(
 
 
 def get_rel_err(
-    target: Union[np.ndarray, torch.Tensor],
-    recons: Union[np.ndarray, torch.Tensor],
+    target: Union[np.ndarray, torch.Tensor], 
+    recons: Union[np.ndarray, torch.Tensor], 
 ):
     target = target.cpu().detach()
     recons = recons.cpu().detach()
