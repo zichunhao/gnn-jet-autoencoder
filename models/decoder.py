@@ -110,8 +110,7 @@ class Decoder(nn.Module):
             device=self.device
         ).to(self.device).to(self.dtype)
 
-        num_params = sum(p.nelement()for p in self.parameters() if p.requires_grad)
-        logging.info(f"Decoder initialized. Number of parameters: {num_params}")
+        logging.info(f"Decoder initialized. Number of parameters: {self.num_learnable_params}")
 
     def forward(
         self, 
@@ -144,3 +143,7 @@ class Decoder(nn.Module):
     def l2_norm(self):
         """L2 norm of the model parameters."""
         return sum(p.pow(2).sum() for p in self.parameters())
+    
+    @property
+    def num_learnable_params(self):
+        return sum(p.nelement()for p in self.parameters() if p.requires_grad)

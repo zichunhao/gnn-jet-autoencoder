@@ -119,15 +119,8 @@ class Encoder(nn.Module):
         else:
             pass
 
-        num_params = sum(
-            p.nelement() 
-            for p in self.parameters() 
-            if p.requires_grad
-        )
 
-        logging.info(
-            f"Encoder initialized. Number of parameters: {num_params}"
-        )
+        logging.info(f"Encoder initialized. Number of parameters: {self.num_learnable_params}")
 
     def forward(
         self, 
@@ -174,3 +167,7 @@ class Encoder(nn.Module):
     def l2_norm(self):
         """L2 norm of the model parameters."""
         return sum(p.pow(2).sum() for p in self.parameters())
+    
+    @property
+    def num_learnable_params(self):
+        return sum(p.nelement()for p in self.parameters() if p.requires_grad)
