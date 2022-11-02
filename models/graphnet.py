@@ -75,7 +75,7 @@ class GraphNet(nn.Module):
         self.node_sizes = node_sizes  # List of dimensions of hidden node features
         self.node_net = nn.ModuleList()
         self.output_node_size = output_node_size  # Dimension of output node features
-        self.output_layer = nn.Linear(self.node_sizes[-1][-1], self.output_node_size)
+        # self.output_layer = nn.Linear(self.node_sizes[-1][-1], self.output_node_size)
 
         # Edge networks
         self.edge_sizes = edge_sizes  # Output sizes in edge networks
