@@ -34,8 +34,6 @@ def main(args):
     
 
     encoder, decoder = initialize_models(args)
-    logging.info(f"{encoder=}")
-    logging.info(f"{decoder=}")
     logging.info(f'Latent space size: {encoder.latent_space_size}')
     logging.info(f'Compression rate: {encoder.latent_space_size / (args.vec_dims * args.num_jet_particles)}')
     
