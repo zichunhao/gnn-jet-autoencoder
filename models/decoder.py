@@ -110,8 +110,6 @@ class Decoder(nn.Module):
             device=self.device
         ).to(self.device).to(self.dtype)
 
-        logging.info(f"Decoder initialized. Number of parameters: {self.num_learnable_params}")
-
     def forward(
         self, 
         x: torch.Tensor, 
