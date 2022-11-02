@@ -24,6 +24,8 @@ def initialize_models(args):
         device=args.device
     )
 
+    logging.info(f"Encoder initialized: {encoder}")
+
     decoder = Decoder(
         num_nodes=args.num_jet_particles,
         latent_node_size=args.latent_node_size,
@@ -39,6 +41,8 @@ def initialize_models(args):
         dtype=args.dtype, 
         device=args.device
     )
+    
+    logging.info(f"Decoder initialized: {decoder}")
 
     if args.load_to_train:
         model_path = Path(args.load_path)
