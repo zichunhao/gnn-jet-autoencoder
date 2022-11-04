@@ -198,10 +198,16 @@ def train_loop(
 
         if (args.abs_coord and (args.unit.lower() == 'tev')) and not args.normalized:
             # Convert to GeV for plotting
-            train_target *= 1000
-            train_recons *= 1000
-            valid_target *= 1000
-            valid_recons *= 1000
+            if args.polar_coord:
+                train_target[..., 0] *= 1000
+                train_recons[..., 0] *= 1000
+                valid_target[..., 0] *= 1000
+                valid_recons[..., 0] *= 1000
+            else:
+                train_target *= 1000
+                train_recons *= 1000
+                valid_target *= 1000
+                valid_recons *= 1000
 
         # EMD: Plot every epoch because model trains slowly with the EMD loss.
         # Others (MSE and chamfer losses): Plot every args.plot_freq epoch or the best epoch.
