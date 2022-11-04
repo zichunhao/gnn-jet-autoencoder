@@ -43,6 +43,10 @@ def initialize_models(args):
     )
     
     logging.info(f"Decoder initialized: {decoder}")
+    
+    logging.info(f"Encoder parameters: {encoder.num_learnable_params}")
+    logging.info(f"Decoder parameters: {decoder.num_learnable_params}")
+    logging.info(f"Total parameters: {encoder.num_learnable_params + decoder.num_learnable_params}")
 
     if args.load_to_train:
         model_path = Path(args.load_path)

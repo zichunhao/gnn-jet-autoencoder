@@ -120,8 +120,6 @@ class Encoder(nn.Module):
             pass
 
 
-        logging.info(f"Encoder initialized. Number of parameters: {self.num_learnable_params}")
-
     def forward(
         self, 
         x: torch.Tensor, 
