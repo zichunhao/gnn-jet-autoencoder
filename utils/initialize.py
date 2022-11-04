@@ -53,43 +53,49 @@ def initialize_models(args):
         logging.info(f"Loading model from {model_path} at epoch {args.load_epoch}.")
         try:
             if (model_path / f'weights_encoder/epoch_{args.load_epoch}_encoder_weights.pth').exists():
-                
-                encoder.load_state_dict(torch.load(
-                    model_path / f'weights_encoder/epoch_{args.load_epoch}_encoder_weights.pth',
+                _load_weights(
+                    encoder, 
+                    path=model_path / f'weights_encoder/epoch_{args.load_epoch}_encoder_weights.pth',
                     map_location=args.device
-                ))
-                decoder.load_state_dict(torch.load(
+                )
+                _load_weights(
+                    decoder, 
                     model_path / f'weights_decoder/epoch_{args.load_epoch}_decoder_weights.pth',
                     map_location=args.device
-                ))
+                )
                 epoch = args.load_epoch
-                logging.info(
-                    f"Loaded model from {model_path} at epoch {epoch}.")
+                logging.info(f"Loaded model from {model_path} at epoch {epoch}.")
+           
             elif (model_path / f'weights_encoder/epoch_{args.load_epoch-1}_encoder_weights.pth').exists():
                 logging.warning(f"No model at epoch {args.load_epoch} found in {model_path}. Searching for epoch {args.load_epoch - 1}.")
                 
                 # load the previous epoch's weights
-                encoder.load_state_dict(torch.load(
+                _load_weights(
+                    encoder, 
                     model_path / f'weights_encoder/epoch_{args.load_epoch-1}_encoder_weights.pth',
                     map_location=args.device
-                ))
-                decoder.load_state_dict(torch.load(
+                )
+                _load_weights(
+                    decoder,
                     model_path / f'weights_decoder/epoch_{args.load_epoch-1}_decoder_weights.pth',
                     map_location=args.device
-                ))
+                )
                 epoch = args.load_epoch - 1
                 logging.info(f"Loaded model from {model_path} at epoch {epoch}.")
+            
             elif (model_path / f'weights_encoder/best_encoder_weights.pth').exists():
                 logging.warning(f"No model at epoch {args.load_epoch - 1} found in {model_path}. Searching for best epoch.")
                 logging.warning(f"Epoch {args.load_epoch} Not found. Loading the best model instead of the specified epoch.")
-                encoder.load_state_dict(torch.load(
+                _load_weights(
+                    encoder,
                     model_path / 'weights_decoder/best_encoder_weights.pth',
                     map_location=args.device
-                ))
-                decoder.load_state_dict(torch.load(
+                )
+                _load_weights(
+                    decoder,
                     model_path / 'weights_decoder/best_decoder_weights.pth',
                     map_location=args.device
-                ))
+                )
                 logging.info(f"Loaded model from {model_path} at best epoch.")
             else:
                 logging.warning(f"No model at best epoch found in {model_path} Training from scratch.")
@@ -99,6 +105,24 @@ def initialize_models(args):
             logging.warning(f"No model at epoch {args.load_epoch} found in {model_path}. Training from scratch.")
     
     return encoder, decoder
+
+
+def _load_weights(
+    model: torch.nn.Module,
+    path: Path,
+    model_name: str = None,
+    *args, **kwargs
+) -> None:
+    """Load weights from path."""
+    model_name = model_name if model_name is not None else model.__class__.__name__
+    try:
+        model.load_state_dict(torch.load(path, *args, **kwargs))
+    except RuntimeError as e:
+        # new updates remove unused network in GraphNet
+        logging.error(f'Error loading {model_name} weights from {path}: {e}.')
+        logging.info('Loading weights with strict=False')
+        model.load_state_dict(torch.load(path, *args, **kwargs), strict=False)
+    logging.info(f'Weights {model_name} loaded from {path}.')
 
 def initialize_optimizers(
     args: Namespace, 
