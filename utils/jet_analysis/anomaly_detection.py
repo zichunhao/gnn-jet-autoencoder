@@ -285,6 +285,13 @@ def anomaly_scores(
             # prepare inputs
             recons_polar = get_p4_polar(recons)
             target_polar = get_p4_polar(target)
+            # extend to 4-vectors (assuming particles have negligible masses)
+            if recons.shape[-1] == 3:
+                p0 = recons_polar[..., 0].unsqueeze(dim=-1)
+                recons = torch.cat([p0, recons], dim=-1)
+            if target.shape[-1] == 3:
+                p0 = target_polar[..., 0].unsqueeze(dim=-1)
+                target = torch.cat([p0, target], dim=-1)
 
         recons_jet = get_jet_p4(recons)
         target_jet = get_jet_p4(target)
@@ -564,7 +571,14 @@ def get_p4_polar(
     eps: float = EPS_DEFAULT
 ) -> torch.Tensor:
     """(E, px, py, pz) -> (E, pT, eta, phi)"""
-    E, px, py, pz = p.unbind(-1)
+    if p.shape[-1] == 4:
+        E, px, py, pz = p.unbind(-1)
+    elif p.shape[-1] == 3:
+        px, py, pz = p.unbind(-1)
+        E = torch.sqrt(px**2 + py**2 + pz**2)
+    else:
+        ValueError(f"p must be a 3- or 4-vector. Got: {p.shape=}")
+    
     pT = (px**2 + py**2)**0.5
     try:
         eta = torch.arcsinh(pz / (pT + eps))
@@ -575,7 +589,14 @@ def get_p4_polar(
 
 def get_p4_cartesian(p: torch.Tensor) -> torch.Tensor:
     """(E, pT, eta, phi) -> (E, px, py, pz)"""
-    E, pT, eta, phi = p.unbind(-1)
+    if p.shape[-1] == 4:
+        E, pT, eta, phi = p.unbind(-1)
+    elif p.shape[-1] == 3:
+        pT, eta, phi = p.unbind(-1)
+        E = pT * torch.cosh(eta)
+    else:
+        ValueError(f"p must be a 3- or 4-vector. Got: {p.shape=}")
+    
     px = pT * torch.cos(phi)
     py = pT * torch.sin(phi)
     pz = pT * torch.sinh(eta)
@@ -623,8 +644,8 @@ def get_polar_rel(
     pt_norm = pt / (jet_pt.unsqueeze(-1) + eps)
     eta_norm = eta - jet_eta.unsqueeze(-1)
     phi_norm = phi - jet_phi.unsqueeze(-1)
-    phi_norm = (phi_norm + np.pi) % (2 * np.pi) - \
-        np.pi  # normalize to [-pi, pi)
+    # normalize to [-pi, pi)
+    phi_norm = (phi_norm + np.pi) % (2 * np.pi) - np.pi  
     return torch.stack((pt_norm, eta_norm, phi_norm), dim=-1)
 
 class DistanceDataset(Dataset):
