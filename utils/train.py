@@ -47,17 +47,28 @@ def train(
     epoch_total_loss = 0
 
     for i, data in enumerate(tqdm(loader)):
-        p4_target = data.to(args.dtype)
-        latent = encoder(p4_target, metric=args.encoder_metric)
-        p4_recons = decoder(latent, metric=args.decoder_metric)
+        p_target = data.to(args.dtype)
+        latent = encoder(p_target, metric=args.encoder_metric)
+        p_recons = decoder(latent, metric=args.decoder_metric)
+        if args.polar_coord:
+            # make sure that the (E, pt) are all positive
+            if p_recons.shape[-1] == 4:
+                p0, pT, eta, phi = p_recons.unbind(-1)
+                p0 = torch.clamp(p0, min=EPS)
+                pT = torch.clamp(pT, min=EPS)
+                p_recons = torch.stack([p0, pT, eta, phi], dim=-1)
+            elif p_recons.shape[-1] == 3:
+                pT, eta, phi = p_recons.unbind(-1)
+                pT = torch.clamp(pT, min=EPS)
+                p_recons = torch.stack([pT, eta, phi], dim=-1)
 
         if device is not None:
-            p4_target = p4_target.to(device=device)
+            p_target = p_target.to(device=device)
 
         batch_loss = get_loss(
             args, 
-            p4_recons, 
-            p4_target.to(dtype=args.dtype, device=args.device),
+            p_recons, 
+            p_target.to(dtype=args.dtype, device=args.device),
             encoder=encoder,
             decoder=decoder
         )
@@ -81,9 +92,9 @@ def train(
                     osp.join(decoder_weight_path, f"epoch_{epoch}_decoder_weights.pth")
                 )
         
-        target_data.append(p4_target.cpu().detach())
+        target_data.append(p_target.cpu().detach())
         latent_data.append(latent.cpu().detach())
-        recons_data.append(p4_recons.cpu().detach())
+        recons_data.append(p_recons.cpu().detach())
 
     target_data = torch.cat(target_data, dim=0)
     latent_data = torch.cat(latent_data, dim=0)
@@ -228,7 +239,7 @@ def train_loop(
                 (outpath_train_jet_plots, outpath_valid_jet_plots)
             ):
                 logging.debug("plotting")
-                plot_p(args, p4_target=target, p4_recons=recons, save_dir=path, epoch=epoch, show=False)
+                plot_p(args, target, recons, save_dir=path, epoch=epoch, show=False)
 
         dts.append(dt)
         train_avg_losses.append(train_avg_loss)
@@ -275,29 +286,29 @@ def train_loop(
 
 def get_loss(
     args: Namespace, 
-    p4_recons: torch.Tensor, 
-    p4_target: torch.Tensor,
+    p_recons: torch.Tensor, 
+    p_target: torch.Tensor,
     encoder: Encoder = None,
     decoder: Decoder = None
 ) -> torch.Tensor:
     if args.loss_choice.lower() in ['chamfer', 'chamferloss', 'chamfer_loss']:
         from utils.losses import ChamferLoss
         chamferloss = ChamferLoss(loss_norm_choice=args.loss_norm_choice)
-        batch_loss = chamferloss(p4_recons, p4_target, jet_features_weight=args.chamfer_jet_features_weight)  # output, target
+        batch_loss = chamferloss(p_recons, p_target, jet_features_weight=args.chamfer_jet_features_weight)  # output, target
 
     if args.loss_choice.lower() in ['emd', 'emdloss', 'emd_loss']:
         from utils.losses import EMDLoss
         emdloss = EMDLoss(
             polar_coord=args.polar_coord,
             abs_coord=args.abs_coord,
-            num_particles=p4_recons.shape[-2],
+            num_particles=p_recons.shape[-2],
             device=args.device.type
         )
-        batch_loss = emdloss(p4_target, p4_recons)  # true, output
+        batch_loss = emdloss(p_target, p_recons)  # true, output
 
     if args.loss_choice.lower() in ['mse', 'mseloss', 'mse_loss']:
         mseloss = nn.MSELoss()
-        batch_loss = mseloss(p4_recons, p4_target)  # output, target
+        batch_loss = mseloss(p_recons, p_target)  # output, target
 
     if args.loss_choice.lower() in ['hybrid', 'combined', 'mix']:
         from utils.losses import ChamferLoss
@@ -306,14 +317,14 @@ def get_loss(
         emdloss = EMDLoss(
             polar_coord=args.polar_coord,
             abs_coord=args.abs_coord,
-            num_particles=p4_recons.shape[-2],
+            num_particles=p_recons.shape[-2],
             device=args.device.type
         )
         batch_loss = args.chamfer_loss_weight * chamferloss(
-            p4_recons, p4_target, 
+            p_recons, p_target, 
             jet_features_weight=args.chamfer_jet_features_weight
         ) + emdloss(
-            p4_target, p4_recons
+            p_target, p_recons
         )
     
     # regularizations
