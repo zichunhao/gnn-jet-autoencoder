@@ -31,6 +31,8 @@ JET_LORENTZ = "jet, Lorentz norms"
 EMD = 'emd'
 EMD_RELATIVE = 'emd (relative coordinates)'
 
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 
 def get_ROC_AUC(
     scores_dict: Dict[str, np.ndarray],
@@ -430,7 +432,14 @@ def chamfer(
         chamfer_dists = []
         for p, q in dataloader:
             # call non-batched version
-            chamfer_dists.append(chamfer(p, q, batch_size=-1))
+            p = p.to(DEVICE)
+            q = q.to(DEVICE)
+            chamfer_dists.append(
+                chamfer(
+                    p, q, 
+                    batch_size=-1
+                ).detach().cpu()
+            )
         return torch.cat(chamfer_dists, dim=0)
     else:
         # non-batched version
@@ -453,7 +462,14 @@ def chamfer_lorentz(
         chamfer_dists = []
         for p, q in dataloader:
             # call non-batched version
-            chamfer_dists.append(chamfer_lorentz(p, q, batch_size=-1))
+            p = p.to(DEVICE)
+            q = q.to(DEVICE)
+            chamfer_dists.append(
+                chamfer_lorentz(
+                    p, q, 
+                    batch_size=-1
+                ).detach().cpu()
+            )
         return torch.cat(chamfer_dists, dim=0)
     else:
         diffs = torch.unsqueeze(p, -2) - torch.unsqueeze(q, -3)
@@ -486,7 +502,14 @@ def hungarian(
         hungarian_distances = []
         for p, q in dataloader:
             # call non-batched version
-            hungarian_distances.append(hungarian(p, q, batch_size=-1))
+            p = p.to(DEVICE)
+            q = q.to(DEVICE)
+            hungarian_distances.append(
+                hungarian(
+                    p, q, 
+                    batch_size=-1
+                ).detach().cpu()
+            )
         return torch.cat(hungarian_distances, dim=0)
     else:
         # non-batched version (base case)
@@ -527,7 +550,13 @@ def hungarian_lorentz(
         hungarian_distances = []
         for p, q in dataloader:
             # call non-batched version
-            hungarian_distances.append(hungarian_lorentz(p, q, batch_size=-1))
+            p = p.to(DEVICE)
+            q = q.to(DEVICE)
+            hungarian_distances.append(
+                hungarian_lorentz(
+                    p, q, batch_size=-1
+                ).detach().cpu()
+            )
         return torch.cat(hungarian_distances, dim=0)
     else:
         # non-batched version (base case)
