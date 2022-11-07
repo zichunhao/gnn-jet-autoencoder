@@ -12,7 +12,8 @@ class JetMomentaDataset(Dataset):
     def __init__(
         self, 
         data: Union[torch.Tensor, np.ndarray], 
-        vec_dims: int = 3
+        vec_dims: int = 3,
+        polar_coord: bool = True,
     ):
         # input checks
         if isinstance(data, np.ndarray):
@@ -31,8 +32,12 @@ class JetMomentaDataset(Dataset):
         if data.shape[-1] == 3:
             if vec_dims == 4:
                 # expand to 4-vector assuming massless particles
-                p0 = torch.norm(data, dim=-1, keepdim=True)
-                # (|p|, px, py, pz)
+                if polar_coord:
+                    pt, eta, phi = data.unbind(-1)
+                    p0 = pt * torch.cosh(eta)
+                else:
+                    p0 = torch.norm(data, dim=-1, keepdim=True)
+                # (|p|, px, py, pz) or (|p|, pt, eta, phi)
                 self.data = torch.cat([p0, data], dim=-1)
             else:
                 self.data = data
