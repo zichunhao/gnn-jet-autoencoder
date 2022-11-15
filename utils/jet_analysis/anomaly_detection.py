@@ -287,11 +287,6 @@ def anomaly_scores(
             # prepare inputs
             recons_polar = get_p4_polar(recons)
             target_polar = get_p4_polar(target)
-            # extend to 4-vectors (assuming particles have negligible masses)
-            if recons.shape[-1] == 3:
-                recons = torch.cat([recons_polar[..., 0], recons], dim=-1)
-            if target.shape[-1] == 3:
-                target = torch.cat([target_polar[..., 0], target], dim=-1)
 
         recons_jet = get_jet_p4(recons)
         target_jet = get_jet_p4(target)
