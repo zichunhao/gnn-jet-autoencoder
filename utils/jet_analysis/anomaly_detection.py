@@ -216,9 +216,10 @@ def anomaly_scores_sig_bkg(
         polar_coord=polar_coord,
         abs_coord=abs_coord
     )
+    keys = set(sig_scores.keys()) & set(bkg_scores.keys())
     scores = {
         k: np.concatenate([sig_scores[k], bkg_scores[k]])
-        for k in sig_scores.keys()
+        for k in keys
     }
     true_labels = np.concatenate([
         np.ones_like(sig_scores[list(sig_scores.keys())[0]]),
