@@ -626,6 +626,9 @@ def get_p4_cartesian(p: torch.Tensor) -> torch.Tensor:
 
 
 def get_jet_p4(p: torch.Tensor) -> torch.Tensor:
+    if p.shape[-1] == 3:
+        p0 = torch.norm(p, dim=-1, keepdim=True)
+        p = torch.cat((p0, p), dim=-1)
     return torch.sum(p, dim=-2)
 
 
