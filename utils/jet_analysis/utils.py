@@ -382,7 +382,11 @@ def get_stats(res, bins):
     med = np.median(res)
     quartile_first = np.quantile(res, 0.25)
     quartile_third = np.quantile(res, 0.75)
-    mad = stats.median_absolute_deviation(res)
+    try:
+        mad = stats.median_absolute_deviation(res)
+    except AttributeError:
+        # for scipy >= 1.9.0
+        mad = stats.median_abs_deviation(res)
     # interdecile range
     idr = np.quantile(res, 0.9) - np.quantile(res, 0.1)
 
