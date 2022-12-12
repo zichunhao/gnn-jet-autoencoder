@@ -81,24 +81,24 @@ class Decoder(nn.Module):
 
         self.device = device
         self.dtype = dtype
-
+    
         # layers
         if self.latent_map.lower().replace(' ', '_') in LOCAL_MIX:
             # node-wise aggregation layer
             self.linear = nn.Linear(
                 latent_node_size,
-                self.latent_node_size
+                self.node_sizes[0][0]
             ).to(self.device).to(self.dtype)
         else:
             self.linear = nn.Linear(
                 latent_node_size,
-                self.num_nodes*self.latent_node_size
+                self.num_nodes*self.node_sizes[0][0]
             ).to(self.device).to(self.dtype)
             
 
         self.decoder = GraphNet(
             num_nodes=self.num_nodes, 
-            input_node_size=self.latent_node_size,
+            input_node_size=self.node_sizes[0][0],
             output_node_size=self.output_node_size, 
             node_sizes=self.node_sizes,
             edge_sizes=self.edge_sizes, 
@@ -126,11 +126,11 @@ class Decoder(nn.Module):
         """Prepare input for the graph decoder."""
         x = x.to(self.device).to(self.dtype)
         if self.latent_map.lower().replace(' ', '_') in LOCAL_MIX:
-            x = x.view(-1, self.num_nodes, self.latent_node_size)
+            x = x.view(-1, self.num_nodes, self.node_sizes[0][0])
             x = self.linear(x)  # map to input node size
         else:
             x = self.linear(x)  # map to input node size
-            x = x.view(-1, self.num_nodes, self.latent_node_size)
+            x = x.view(-1, self.num_nodes, self.node_sizes[0][0])
         return x
     
     def l1_norm(self):
