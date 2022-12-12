@@ -7,21 +7,21 @@ import logging
 
 from utils.const import DEFAULT_DEVICE, DEFAULT_DTYPE, EPS
 
-class GraphNet(nn.Module):
 
+class GraphNet(nn.Module):
     def __init__(
-        self, 
-        num_nodes: int, 
-        input_node_size: int, 
-        output_node_size: int, 
-        node_sizes: List[List[int]], 
+        self,
+        num_nodes: int,
+        input_node_size: int,
+        output_node_size: int,
+        node_sizes: List[List[int]],
         edge_sizes: List[List[int]],
-        num_mps: int, 
+        num_mps: int,
         alphas: List[int] = 0.1,
         dropout: float = 0.0,
-        batch_norm: bool = False, 
-        device: torch.device = None, 
-        dtype: torch.dtype = None
+        batch_norm: bool = False,
+        device: torch.device = None,
+        dtype: torch.dtype = None,
     ):
         """A fully connected message-passing standard graph neural network
         with the distance as edge features.
@@ -32,29 +32,29 @@ class GraphNet(nn.Module):
         :type input_node_size: int
         :param output_node_size: Size/dimension of output node feature vectors.
         :type output_node_size: int
-        :param node_sizes: Sizes/dimensions of hidden node 
+        :param node_sizes: Sizes/dimensions of hidden node
         in each layer in each iteration of message passing.
         :type node_sizes: List[List[int]]
-        :param edge_sizes: Sizes/dimensions of edges networks 
+        :param edge_sizes: Sizes/dimensions of edges networks
         in each layer  in each iteration of message passing.
         :type edge_sizes: List[List[int]]
         :param num_mps: Number of message passing steps.
         :type num_mps: int
-        :param alphas: Alpha value for the leaky relu layer for edge features 
+        :param alphas: Alpha value for the leaky relu layer for edge features
         in each iteration of message passing., defaults to 0.1.
         :param dropout: Dropout rate, defaults to 0.0.
         :type dropout: float
         :type alphas: List[int], optional
         :param batch_norm: Whether to use batch normalization, defaults to False
         :type batch_norm: bool, optional
-        :param device: Device of the model, defaults to None. 
+        :param device: Device of the model, defaults to None.
         If None, use gpu if cuda is available and otherwise cpu.
         :type device: torch.device, optional
         :param dtype: Dtype of the model, defaults to None.
         If None, use torch.float64.
         :type dtype: torch.dtype, optional
         """
-        
+
         node_sizes = _adjust_var_list(node_sizes, num_mps)
         edge_sizes = _adjust_var_list(edge_sizes, num_mps)
         alphas = _adjust_var_list(alphas, num_mps)
@@ -99,8 +99,7 @@ class GraphNet(nn.Module):
         for i in range(self.num_mps):
             # Edge layers
             edge_layers = _create_dnn(
-                layer_sizes=self.edge_sizes[i], 
-                input_size=self.input_edge_sizes[i]
+                layer_sizes=self.edge_sizes[i], input_size=self.input_edge_sizes[i]
             )
             self.edge_net.append(edge_layers)
             if self.batch_norm:
@@ -111,11 +110,17 @@ class GraphNet(nn.Module):
 
             # Node layers
             node_layers = _create_dnn(layer_sizes=self.node_sizes[i])
-            node_layers.insert(0, nn.Linear(
-                self.edge_sizes[i][-1] + self.node_sizes[i][0], self.node_sizes[i][0]
-            ))
-            if i+1 < self.num_mps:
-                node_layers.append(nn.Linear(node_sizes[i][-1], self.node_sizes[i+1][0]))
+            node_layers.insert(
+                0,
+                nn.Linear(
+                    self.edge_sizes[i][-1] + self.node_sizes[i][0],
+                    self.node_sizes[i][0],
+                ),
+            )
+            if i + 1 < self.num_mps:
+                node_layers.append(
+                    nn.Linear(node_sizes[i][-1], self.node_sizes[i + 1][0])
+                )
             else:
                 node_layers.append(nn.Linear(node_sizes[i][-1], self.output_node_size))
             self.node_net.append(node_layers)
@@ -127,18 +132,14 @@ class GraphNet(nn.Module):
 
         self.to(device=self.device, dtype=self.dtype)
 
-    def forward(
-        self, 
-        x: torch.Tensor, 
-        metric: str = 'euclidean'
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, metric: str = "euclidean") -> torch.Tensor:
         """Forward pass of the model.
 
         :param x: Input node features.
         :type x: torch.Tensor
-        :param metric: Metric to compute the distance, defaults to 'euclidean'. 
-        Choice: ('Minkowskian', 'euclidean'). 
-        'Minkowskian' is only available for 4-vectors. 
+        :param metric: Metric to compute the distance, defaults to 'euclidean'.
+        Choice: ('Minkowskian', 'euclidean').
+        'Minkowskian' is only available for 4-vectors.
         :type metric: str, optional
         :return: Output node features.
         :rtype: torch.Tensor
@@ -150,24 +151,24 @@ class GraphNet(nn.Module):
         x = F.pad(x, (0, self.node_sizes[0][0] - self.input_node_size, 0, 0, 0, 0))
 
         for i in range(self.num_mps):
-            metric = _get_metric_func(self.metric if x.shape[-1] == 4 else 'euclidean')
+            metric = _get_metric_func(self.metric if x.shape[-1] == 4 else "euclidean")
             # Aij = xi ⊕ xj ⊕ d(xi, xj)
             A = self._getA(
-                x=x, 
-                input_edge_size=self.input_edge_sizes[i], 
+                x=x,
+                input_edge_size=self.input_edge_sizes[i],
                 hidden_node_size=self.node_sizes[i][0],
-                metric=metric
+                metric=metric,
             )
             # A = EdgeNet(A)
             A = self._edge_conv(A, i)
-            
+
             # xi = NodeNet(xi ⊕ sum_j Aij)
             x = self._aggregate(x, A, i)
             x = x.view(batch_size, self.num_nodes, -1)
 
         x = x.view(batch_size, self.num_nodes, self.output_node_size)
         return x
-    
+
     def _dropout(self, x: torch.Tensor) -> torch.Tensor:
         """Dropout layer
         :param x: Input tensor.
@@ -182,11 +183,11 @@ class GraphNet(nn.Module):
             return x
 
     def _getA(
-        self, 
-        x: torch.Tensor, 
-        input_edge_size: int, 
-        hidden_node_size: int, 
-        metric: Callable
+        self,
+        x: torch.Tensor,
+        input_edge_size: int,
+        hidden_node_size: int,
+        metric: Callable,
     ) -> torch.Tensor:
         """Get Adjacency matrix A, with
         :math:`A_{ij} = x_i \oplus x_j \oplus d(x_i, x_j)`.
@@ -201,25 +202,27 @@ class GraphNet(nn.Module):
         :type hidden_node_size: int
         :param metric: Metric for computing distances between nodes
         :type metric: Callable
-        :return: Adjacency matrix that stores distances among nodes. 
+        :return: Adjacency matrix that stores distances among nodes.
         Shape: (batch_size * self.num_nodes * self.num_nodes, input_edge_size)
         :rtype: torch.Tensor
         """
         batch_size = x.shape[0]
-        x1 = x.repeat(1, 1, self.num_nodes).view(batch_size, self.num_nodes*self.num_nodes, hidden_node_size)
-        x2 = x.repeat(1, self.num_nodes, 1)  # 1*(self.num_nodes)*1 tensor with repeated x along axis=1
+        x1 = x.repeat(1, 1, self.num_nodes).view(
+            batch_size, self.num_nodes * self.num_nodes, hidden_node_size
+        )
+        x2 = x.repeat(
+            1, self.num_nodes, 1
+        )  # 1*(self.num_nodes)*1 tensor with repeated x along axis=1
         # adjacency matrix: D_{ij} = d(x_i, x_j)
         dists = metric(x2 - x1 + self.eps)
         # A_{ij} = x_i ⊕ x_j ⊕ d(x_i, x_j)
-        A = torch.cat((x1, x2, dists), 2).view(batch_size, self.num_nodes, self.num_nodes, input_edge_size)
+        A = torch.cat((x1, x2, dists), 2).view(
+            batch_size, self.num_nodes, self.num_nodes, input_edge_size
+        )
         return A
 
-    def _concat(
-        self, 
-        A: torch.Tensor, 
-        x: torch.Tensor
-    ) -> torch.Tensor:
-        """Concatenate node features and edge features: 
+    def _concat(self, A: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        """Concatenate node features and edge features:
         :math:`x \leftarrow x_i \oplus \sum_j A_{ij}`.
 
         :param A: Adjacency matrix that stores distances among nodes.
@@ -238,16 +241,11 @@ class GraphNet(nn.Module):
         # e_i = \sum_j A_{ij}
         e = torch.sum(A, dim=-2)
         # x_i <- x_i ⊕ e_i
-        # x = torch.cat((x, e), dim=-1)  # shape: (b, n, e+n) 
-        x = torch.cat((e, x), dim=-1)  # shape: (b, n, e+n) 
+        # x = torch.cat((x, e), dim=-1)  # shape: (b, n, e+n)
+        x = torch.cat((e, x), dim=-1)  # shape: (b, n, e+n)
         return x
 
-    def _aggregate(
-        self, 
-        x: torch.Tensor, 
-        A: torch.Tensor, 
-        i: int
-    ) -> torch.Tensor:
+    def _aggregate(self, x: torch.Tensor, A: torch.Tensor, i: int) -> torch.Tensor:
         """Aggregate node features with edge features
         :math:`x_j \leftarrow \mathrm{NodeNet}_i (x_j \oplus \sum_l A_{j k})`.
 
@@ -271,11 +269,7 @@ class GraphNet(nn.Module):
                 x = self.bn_node[i][j](x)
         return self._dropout(x)
 
-    def _edge_conv(
-        self, 
-        A: torch.Tensor, 
-        i: int
-    ) -> torch.Tensor:
+    def _edge_conv(self, A: torch.Tensor, i: int) -> torch.Tensor:
         """Edge convolution at layer i:
         :math:`A_{j k} \leftarrow \mathrm{EdgeNet}_i (A_{j k})`.
 
@@ -294,19 +288,16 @@ class GraphNet(nn.Module):
         return self._dropout(A)
 
 
-def _create_dnn(
-    layer_sizes: List[int], 
-    input_size: int = -1
-) -> nn.ModuleList:
+def _create_dnn(layer_sizes: List[int], input_size: int = -1) -> nn.ModuleList:
     dnn = nn.ModuleList()
     if input_size >= 0:
         sizes = layer_sizes.copy()
         sizes.insert(0, input_size)
         for i in range(len(layer_sizes)):
-            dnn.append(nn.Linear(sizes[i], sizes[i+1]))
+            dnn.append(nn.Linear(sizes[i], sizes[i + 1]))
     else:
         for i in range(len(layer_sizes) - 1):
-            dnn.append(nn.Linear(layer_sizes[i], layer_sizes[i+1]))
+            dnn.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
     return dnn
 
 
@@ -322,10 +313,14 @@ def _adjust_var_list(data, num):
 def _get_metric_func(metric: Union[Callable, str]) -> Callable:
     if isinstance(metric, Callable):
         return metric
-    if metric.lower() in ('cartesian', 'euclidean'):
+    if metric.lower() in ("cartesian", "euclidean"):
         return lambda x: torch.sum(x**2, -1).unsqueeze(-1)
-    if metric.lower() == 'minkowskian':
-        return lambda x: (2 * torch.pow(x[..., 0], 2) - torch.sum(torch.pow(x, 2), dim=-1)).unsqueeze(-1)
+    if metric.lower() == "minkowskian":
+        return lambda x: (
+            2 * torch.pow(x[..., 0], 2) - torch.sum(torch.pow(x, 2), dim=-1)
+        ).unsqueeze(-1)
     else:
-        logging.warning(f"Metric ({metric}) for adjacency matrix is not implemented. Use 'cartesian' instead.")
-        return _get_metric_func('cartesian')
+        logging.warning(
+            f"Metric ({metric}) for adjacency matrix is not implemented. Use 'cartesian' instead."
+        )
+        return _get_metric_func("cartesian")

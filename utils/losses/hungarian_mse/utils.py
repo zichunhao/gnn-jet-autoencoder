@@ -14,9 +14,11 @@ def get_p_polar(p):
     elif p.shape[-1] == 3:
         px, py, pz = p.unbind(-1)
     else:
-        raise ValueError(f'Wrong last dimension of p. Should be 3 or 4 but found: {p.shape[-1]}.')
+        raise ValueError(
+            f"Wrong last dimension of p. Should be 3 or 4 but found: {p.shape[-1]}."
+        )
 
-    pt = torch.sqrt(px ** 2 + py ** 2 + EPS)
+    pt = torch.sqrt(px**2 + py**2 + EPS)
     try:
         eta = torch.asinh(pz / (pt + EPS))
     except AttributeError:
@@ -52,7 +54,9 @@ def get_p_cartesian(p, return_p0=False):
     elif p.shape[-1] == 3:
         pt, eta, phi = p.unbind(-1)
     else:
-        raise ValueError(f'Wrong last dimension of p. Should be 3 or 4 but found: {p.shape[-1]}.')
+        raise ValueError(
+            f"Wrong last dimension of p. Should be 3 or 4 but found: {p.shape[-1]}."
+        )
 
     px = pt * torch.cos(phi)
     py = pt * torch.cos(phi)
@@ -73,4 +77,6 @@ def check_p_dim(p):
     ValueError if p is not a 3- or 4-vector (i.e. p.shape[-1] is not 3 or 4).
     """
     if p.shape[-1] not in [3, 4]:
-        raise ValueError(f'Wrong last dimension of p. Should be 3 or 4 but found: {p.shape[-1]}.')
+        raise ValueError(
+            f"Wrong last dimension of p. Should be 3 or 4 but found: {p.shape[-1]}."
+        )

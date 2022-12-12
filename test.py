@@ -5,10 +5,7 @@ from pathlib import Path
 import torch
 import numpy as np
 from utils.argparse_utils import get_bool, get_device, get_dtype
-from utils.argparse_utils import (
-    parse_model_settings,
-    parse_eval_settings
-)
+from utils.argparse_utils import parse_model_settings, parse_eval_settings
 from utils.jet_analysis import plot_p, get_ROC_AUC, anomaly_scores_sig_bkg
 from utils.initialize import initialize_models, initialize_test_dataloader
 from utils.permutation import PermutationTest
@@ -23,18 +20,14 @@ def test(args):
 
     # Load models
     encoder, decoder = initialize_models(args)
-    
+
     # permutation test
     permutation_test = PermutationTest(
-        encoder=encoder, 
-        decoder=decoder,
-        device=args.device,
-        dtype=args.dtype
+        encoder=encoder, decoder=decoder, device=args.device, dtype=args.dtype
     )
     perm_result = permutation_test(test_loader, verbose=False)
     logging.info(f"Permutation invariance: {perm_result['invariance']}")
     logging.info(f"Permutation equivariance: {perm_result['equivariance']}")
-    
 
     _, recons, target, latent = validate(
         args,
@@ -61,11 +54,7 @@ def test(args):
         scale = 1
 
     jet_images_same_norm, jet_images = plot_p(
-        args, 
-        target*scale, 
-        recons*scale, 
-        fig_path, 
-        jet_type=args.jet_type
+        args, target * scale, recons * scale, fig_path, jet_type=args.jet_type
     )
     torch.save(jet_images_same_norm, osp.join(test_path, "jet_images_same_norm.pt"))
     torch.save(jet_images, osp.join(test_path, "jet_images.pt"))
@@ -99,7 +88,7 @@ def test(args):
                 decoder,
                 args.load_epoch,
                 args.load_path,
-                args.device
+                args.device,
             )
 
             scores_dict, true_labels, sig_scores, bkg_scores = anomaly_scores_sig_bkg(
@@ -141,8 +130,7 @@ def test(args):
         for sig_l in sig_scores_list:
             keys = keys & sig_l.keys()
         sig_scores = {
-            k: np.concatenate([v[k] for v in sig_scores_list], axis=0)
-            for k in keys
+            k: np.concatenate([v[k] for v in sig_scores_list], axis=0) for k in keys
         }
         # signals and backgrounds
         scores_dict = {
@@ -165,74 +153,109 @@ def setup_argparse():
 
     # Model
     parse_model_settings(parser)
-    
+
     # Data
     parser.add_argument(
-        '--test-data-paths', type=str, nargs='+', 
-        help='Paths of the test data.'
+        "--test-data-paths", type=str, nargs="+", help="Paths of the test data."
     )
     parser.add_argument(
-        '-j', '--jet-type', type=str, default='qcd',
-        help="Jet type to train. Options: ('qcd', 'g', 'q', 't', 'w', 'z')."
+        "-j",
+        "--jet-type",
+        type=str,
+        default="qcd",
+        help="Jet type to train. Options: ('qcd', 'g', 'q', 't', 'w', 'z').",
     )
     parser.add_argument(
-        '-tbs', '--test-batch-size', type=int, default=128, metavar='',
-        help='Test batch size.'
+        "-tbs",
+        "--test-batch-size",
+        type=int,
+        default=128,
+        metavar="",
+        help="Test batch size.",
     )
     parser.add_argument(
-        '--unit', type=str, default='TeV',
-        help="The unit of momenta. Choices: ('GeV', 'TeV'). Default: TeV. "
+        "--unit",
+        type=str,
+        default="TeV",
+        help="The unit of momenta. Choices: ('GeV', 'TeV'). Default: TeV. ",
     )
     parser.add_argument(
-        '--abs-coord', type=get_bool, default=False, metavar='',
-        help='Whether the data is in absolute coordinates. False when relative coordinates are used.'
+        "--abs-coord",
+        type=get_bool,
+        default=False,
+        metavar="",
+        help="Whether the data is in absolute coordinates. False when relative coordinates are used.",
     )
     parser.add_argument(
-        '--polar-coord', type=get_bool, default=True, metavar='',
-        help='Whether the data is in polar coordinates (pt, eta, phi). False when Cartesian coordinates are used.'
+        "--polar-coord",
+        type=get_bool,
+        default=True,
+        metavar="",
+        help="Whether the data is in polar coordinates (pt, eta, phi). False when Cartesian coordinates are used.",
     )
     parser.add_argument(
-        '--normalized', type=get_bool, default=False, metavar='',
-        help='Whether the data is normalized. False when unnormalized data is used.'
-    )
-    
-    parser.add_argument(
-        '--device', type=get_device, default=get_device('-1'), metavar='',
-        help="Device to which the model is initialized. Options: ('gpu', 'cpu', 'cuda', '-1'). "
-        "Default: -1, which means deciding device based on whether gpu is available."
-    )
-    parser.add_argument(
-        '--dtype', type=get_dtype, default=torch.float64, metavar='',
-        help="Data type to which the model is initialized. Options: ('float', 'float64', 'double'). Default: torch.float64"
+        "--normalized",
+        type=get_bool,
+        default=False,
+        metavar="",
+        help="Whether the data is normalized. False when unnormalized data is used.",
     )
 
-    
+    parser.add_argument(
+        "--device",
+        type=get_device,
+        default=get_device("-1"),
+        metavar="",
+        help="Device to which the model is initialized. Options: ('gpu', 'cpu', 'cuda', '-1'). "
+        "Default: -1, which means deciding device based on whether gpu is available.",
+    )
+    parser.add_argument(
+        "--dtype",
+        type=get_dtype,
+        default=torch.float64,
+        metavar="",
+        help="Data type to which the model is initialized. Options: ('float', 'float64', 'double'). Default: torch.float64",
+    )
 
     # Test
     parser.add_argument(
-        '--load-path', type=str, required=True, metavar='',
-        help='Path of the trained model to load.'
+        "--load-path",
+        type=str,
+        required=True,
+        metavar="",
+        help="Path of the trained model to load.",
     )
     parser.add_argument(
-        '--load-epoch', type=int, default=-1, metavar='',
-        help='Epoch number of the trained model to load.'
+        "--load-epoch",
+        type=int,
+        default=-1,
+        metavar="",
+        help="Epoch number of the trained model to load.",
     )
     parser.add_argument(
-        '--loss-choice', type=str, default='ChamferLoss', metavar='',
-        help="Choice of loss function. Options: ('ChamferLoss', 'EMDLoss', 'hybrid')"
+        "--loss-choice",
+        type=str,
+        default="ChamferLoss",
+        metavar="",
+        help="Choice of loss function. Options: ('ChamferLoss', 'EMDLoss', 'hybrid')",
     )
     parser.add_argument(
-        '--loss-norm-choice', type=str, default='cartesian', metavar='',
+        "--loss-norm-choice",
+        type=str,
+        default="cartesian",
+        metavar="",
         help="Choice of calculating the norms of 4-vectors when calculating the loss. "
         "Options: ['cartesian', 'minkowskian', 'polar']. \n"
         "'cartesian': (+, +, +, +). \n"
         "'minkowskian': (+, -, -, -) \n"
         "'polar': convert to (E, pt, eta, phi) paired with metric (+, +, +, +) \n"
-        "Default: 'cartesian.'"
+        "Default: 'cartesian.'",
     )
     parser.add_argument(
-        '--chamfer-jet-features-weight', type=float, default=1,
-        help="The weight of jet momenta when adding to the particle momenta chamfer loss."
+        "--chamfer-jet-features-weight",
+        type=float,
+        default=1,
+        help="The weight of jet momenta when adding to the particle momenta chamfer loss.",
     )
     parser.add_argument(
         "--chamfer-jet-features",

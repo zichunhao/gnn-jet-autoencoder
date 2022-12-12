@@ -28,10 +28,10 @@ MSE_PARTICLE_RELATIVE_POLAR = "particle, relative polar, MSE"
 JET_CARTESIAN = "jet, Cartesian"
 JET_POLAR = "jet, polar"
 JET_LORENTZ = "jet, Lorentz norms"
-EMD = 'emd'
-EMD_RELATIVE = 'emd (relative coordinates)'
+EMD = "emd"
+EMD_RELATIVE = "emd (relative coordinates)"
 
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def get_ROC_AUC(
@@ -39,7 +39,7 @@ def get_ROC_AUC(
     true_labels: np.ndarray,
     save_path: Union[str, Path] = None,
     plot_rocs: bool = True,
-    rocs_hlines: List[float] = [1e-1, 1e-2]
+    rocs_hlines: List[float] = [1e-1, 1e-2],
 ) -> Tuple[Dict[str, Tuple[np.ndarray]], Dict[str, Tuple[np.ndarray]]]:
     """Get AUC and ROC curves given scores and true labels.
 
@@ -47,14 +47,14 @@ def get_ROC_AUC(
     :type scores_dict: Dict[str, np.ndarray]
     :param true_labels: True labels.
     :type true_labels: np.ndarray
-    :param save_path: Path to save the ROC curves and AUCs, defaults to None. 
+    :param save_path: Path to save the ROC curves and AUCs, defaults to None.
     If None, the ROC curves and AUCs are not saved.
     :type save_path: str, optional
-    :param rocs_hlines: Horizontal lines (and intercept) to plot on the ROC curves, 
+    :param rocs_hlines: Horizontal lines (and intercept) to plot on the ROC curves,
     defaults to [1e-1, 1e-2].
     :type rocs_hlines: List[float], optional
-    :return: (`roc_curves`, `aucs`), 
-    where `roc_curves` is a dictionary {kind: roc_curve}, 
+    :return: (`roc_curves`, `aucs`),
+    where `roc_curves` is a dictionary {kind: roc_curve},
     and `aucs` is a dictionary {kind: auc}.
     :rtype: Tuple[Dict[str, Tuple[np.ndarray]], Dict[str, Tuple[np.ndarray]]]
     """
@@ -74,10 +74,10 @@ def get_ROC_AUC(
     if save_path is not None:
         save_path = Path(save_path)
         save_path.mkdir(exist_ok=True, parents=True)
-        torch.save(scores_dict, save_path / 'scores.pt')
-        torch.save(true_labels, save_path / 'true_labels.pt')
-        torch.save(roc_curves, save_path / 'roc_curves.pt')
-        torch.save(aucs, save_path / 'aucs.pt')
+        torch.save(scores_dict, save_path / "scores.pt")
+        torch.save(true_labels, save_path / "true_labels.pt")
+        torch.save(roc_curves, save_path / "roc_curves.pt")
+        torch.save(aucs, save_path / "aucs.pt")
 
     if plot_rocs:
         auc_sorted = list(sorted(aucs.items(), key=lambda x: x[1], reverse=True))
@@ -88,73 +88,76 @@ def get_ROC_AUC(
                 aucs=auc_sorted,
                 roc_curves=roc_curves,
                 rocs_hlines=rocs_hlines,
-                path=save_path / 'roc_curves.pdf',
-                show_intercepts=False
+                path=save_path / "roc_curves.pdf",
+                show_intercepts=False,
             )
             plot_roc_curves(
                 aucs=auc_sorted[:3],
                 roc_curves=roc_curves,
                 rocs_hlines=rocs_hlines,
-                path=save_path / 'roc_curves_top3.pdf',
-                show_intercepts=True
+                path=save_path / "roc_curves_top3.pdf",
+                show_intercepts=True,
             )
             plot_roc_curves(
                 aucs=auc_sorted[:1],
                 roc_curves=roc_curves,
                 rocs_hlines=rocs_hlines,
-                path=save_path / 'roc_curves_top1.pdf',
-                show_intercepts=False
+                path=save_path / "roc_curves_top1.pdf",
+                show_intercepts=False,
             )
         else:
             plot_roc_curves(
-                auc_sorted, 
+                auc_sorted,
                 roc_curves=roc_curves,
                 rocs_hlines=rocs_hlines,
                 path=None,
-                show_intercepts=True
+                show_intercepts=True,
             )
 
     return roc_curves, aucs
 
+
 def plot_roc_curves(
-    aucs: Tuple[str, float], 
+    aucs: Tuple[str, float],
     roc_curves: Dict[str, np.ndarray],
     rocs_hlines: List[float] = [1e-1, 1e-2],
     path: Union[str, Path] = None,
-    show_intercepts: bool = False
+    show_intercepts: bool = False,
 ):
     fig, ax = plt.subplots(1, 1, figsize=(8, 6))
-    ax.set_xlabel('True Positive Rate')
-    ax.set_ylabel('False Positive Rate')
-    ax.set_yscale('log')
+    ax.set_xlabel("True Positive Rate")
+    ax.set_ylabel("False Positive Rate")
+    ax.set_yscale("log")
 
     for kind, auc in aucs:
 
         fpr, tpr, thresholds = roc_curves[kind]
         intercepts = dict()
-        ax.plot(tpr, fpr, label=f'{kind} (AUC: {auc:.5f})')
+        ax.plot(tpr, fpr, label=f"{kind} (AUC: {auc:.5f})")
         for y_value in rocs_hlines:
             ax.plot(
-                np.linspace(0, 1, 100), [y_value] * 100,
-                '--', c='gray', linewidth=1
+                np.linspace(0, 1, 100), [y_value] * 100, "--", c="gray", linewidth=1
             )
             x_intercepts = tpr[np.searchsorted(fpr, y_value)]
             intercepts[y_value] = x_intercepts
             ax.vlines(
                 x=x_intercepts,
-                ymin=0, ymax=y_value,
-                linestyles="--", colors="gray", linewidth=1
+                ymin=0,
+                ymax=y_value,
+                linestyles="--",
+                colors="gray",
+                linewidth=1,
             )
         fpr, tpr, thresholds = roc_curves[kind]
         logging.info(f"{kind}: {intercepts}")
 
     if len(aucs) >= 5:
-        plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        plt.legend(loc="upper left", bbox_to_anchor=(1, 1))
     else:
         plt.legend()
     if path is not None:
         if len(aucs) >= 5:
-            plt.savefig(path, bbox_inches='tight')
+            plt.savefig(path, bbox_inches="tight")
         else:
             plt.savefig(path)
     plt.close()
@@ -169,7 +172,7 @@ def anomaly_scores_sig_bkg(
     include_emd: bool = True,
     polar_coord: bool = True,
     abs_coord: bool = False,
-    batch_size: int = -1
+    batch_size: int = -1,
 ) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
     """Compute anomaly scores for signal and background
     and return the anomaly scores along with the true labels.
@@ -193,10 +196,10 @@ def anomaly_scores_sig_bkg(
         - (polar_coord, abs_coord) = (False, False): (px_rel, py_rel, pz_rel)
     :type abs_coord: bool, optional
     :param batch_size: Batch size, defaults to -1.
-    If it is a non-positive number or None, then the data will no be batched. 
+    If it is a non-positive number or None, then the data will no be batched.
     :type batch_size: int, optional
-    :return: (scores, true_labels, sig_scores, bkg_scores), 
-    where scores is a dictionary 
+    :return: (scores, true_labels, sig_scores, bkg_scores),
+    where scores is a dictionary
     with the scores (value) for each type (key).
     :rtype: Tuple[np.ndarray, Dict[str, np.ndarray]]
     """
@@ -206,7 +209,7 @@ def anomaly_scores_sig_bkg(
         include_emd=include_emd,
         batch_size=batch_size,
         polar_coord=polar_coord,
-        abs_coord=abs_coord
+        abs_coord=abs_coord,
     )
     bkg_scores = anomaly_scores(
         bkg_recons,
@@ -214,17 +217,16 @@ def anomaly_scores_sig_bkg(
         include_emd=include_emd,
         batch_size=batch_size,
         polar_coord=polar_coord,
-        abs_coord=abs_coord
+        abs_coord=abs_coord,
     )
     keys = set(sig_scores.keys()) & set(bkg_scores.keys())
-    scores = {
-        k: np.concatenate([sig_scores[k], bkg_scores[k]])
-        for k in keys
-    }
-    true_labels = np.concatenate([
-        np.ones_like(sig_scores[list(sig_scores.keys())[0]]),
-        -np.ones_like(bkg_scores[list(bkg_scores.keys())[0]])
-    ])
+    scores = {k: np.concatenate([sig_scores[k], bkg_scores[k]]) for k in keys}
+    true_labels = np.concatenate(
+        [
+            np.ones_like(sig_scores[list(sig_scores.keys())[0]]),
+            -np.ones_like(bkg_scores[list(bkg_scores.keys())[0]]),
+        ]
+    )
     return scores, true_labels, sig_scores, bkg_scores
 
 
@@ -234,7 +236,7 @@ def anomaly_scores(
     include_emd: bool = True,
     batch_size: int = -1,
     polar_coord: bool = True,
-    abs_coord: bool = False
+    abs_coord: bool = False,
 ) -> Dict[str, np.ndarray]:
     """Get anomaly scores for a batch of jets.
 
@@ -245,7 +247,7 @@ def anomaly_scores(
     :param include_emd: Whether to include EMD loss as a score, defaults to True
     :type include_emd: bool, optional
     :param batch_size: Batch size, defaults to -1.
-    If it is a non-positive number or None, then the data will no be batched. 
+    If it is a non-positive number or None, then the data will no be batched.
     :type batch_size: int, optional
     :param polar_coord: Use polar coordinates, defaults to True
     :type polar_coord: bool, optional
@@ -258,7 +260,7 @@ def anomaly_scores(
     :return: A dictionary with the scores (value) for each type (key).
     :rtype: Dict[str, np.ndarray]
     """
-    
+
     if not abs_coord:
         if polar_coord:
             # relative polar
@@ -269,9 +271,25 @@ def anomaly_scores(
             recons_polar_rel = get_p4_polar(recons)
             target_polar_rel = get_p4_polar(target)
         scores = {
-            CHAMFER_PARTICLE_RELATIVE_POLAR: chamfer(recons_polar_rel, target_polar_rel, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-            HUNGARIAN_PARTICLE_RELATIVE_POLAR: hungarian(recons_polar_rel, target_polar_rel, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-            MSE_PARTICLE_RELATIVE_POLAR: mse(recons_polar_rel, target_polar_rel).mean(-1).cpu().detach().numpy(),
+            CHAMFER_PARTICLE_RELATIVE_POLAR: chamfer(
+                recons_polar_rel, target_polar_rel, batch_size=batch_size
+            )
+            .mean(-1)
+            .cpu()
+            .detach()
+            .numpy(),
+            HUNGARIAN_PARTICLE_RELATIVE_POLAR: hungarian(
+                recons_polar_rel, target_polar_rel, batch_size=batch_size
+            )
+            .mean(-1)
+            .cpu()
+            .detach()
+            .numpy(),
+            MSE_PARTICLE_RELATIVE_POLAR: mse(recons_polar_rel, target_polar_rel)
+            .mean(-1)
+            .cpu()
+            .detach()
+            .numpy(),
         }
         if include_emd:
             try:
@@ -305,22 +323,64 @@ def anomaly_scores(
         scores = {
             # average over jets
             # Chamfer
-            CHAMFER_PARTICLE_CARTESIAN: chamfer(recons, target, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-            CHAMFER_PARTICLE_POLAR: chamfer(recons_polar, target_polar, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-            CHAMFER_PARTICLE_RELATIVE_POLAR: chamfer(recons_polar_rel, target_polar_rel, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
+            CHAMFER_PARTICLE_CARTESIAN: chamfer(recons, target, batch_size=batch_size)
+            .mean(-1)
+            .cpu()
+            .detach()
+            .numpy(),
+            CHAMFER_PARTICLE_POLAR: chamfer(
+                recons_polar, target_polar, batch_size=batch_size
+            )
+            .mean(-1)
+            .cpu()
+            .detach()
+            .numpy(),
+            CHAMFER_PARTICLE_RELATIVE_POLAR: chamfer(
+                recons_polar_rel, target_polar_rel, batch_size=batch_size
+            )
+            .mean(-1)
+            .cpu()
+            .detach()
+            .numpy(),
             # Hungarian (linear assignment)
-            HUNGARIAN_PARTICLE_CARTESIAN: hungarian(recons, target, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-            HUNGARIAN_PARTICLE_POLAR: hungarian(recons_polar, target_polar, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
-            HUNGARIAN_PARTICLE_RELATIVE_POLAR: hungarian(recons_polar_rel, target_polar_rel, batch_size=batch_size).mean(-1).cpu().detach().numpy(),
+            HUNGARIAN_PARTICLE_CARTESIAN: hungarian(
+                recons, target, batch_size=batch_size
+            )
+            .mean(-1)
+            .cpu()
+            .detach()
+            .numpy(),
+            HUNGARIAN_PARTICLE_POLAR: hungarian(
+                recons_polar, target_polar, batch_size=batch_size
+            )
+            .mean(-1)
+            .cpu()
+            .detach()
+            .numpy(),
+            HUNGARIAN_PARTICLE_RELATIVE_POLAR: hungarian(
+                recons_polar_rel, target_polar_rel, batch_size=batch_size
+            )
+            .mean(-1)
+            .cpu()
+            .detach()
+            .numpy(),
             # MSE
             MSE_PARTICLE_CARTESIAN: mse(recons, target).mean(-1).cpu().detach().numpy(),
-            MSE_PARTICLE_POLAR: mse(recons_polar, target_polar).mean(-1).cpu().detach().numpy(),
-            MSE_PARTICLE_RELATIVE_POLAR: mse(recons_polar_rel, target_polar_rel).mean(-1).cpu().detach().numpy(),
+            MSE_PARTICLE_POLAR: mse(recons_polar, target_polar)
+            .mean(-1)
+            .cpu()
+            .detach()
+            .numpy(),
+            MSE_PARTICLE_RELATIVE_POLAR: mse(recons_polar_rel, target_polar_rel)
+            .mean(-1)
+            .cpu()
+            .detach()
+            .numpy(),
             # metrics based on jets
             JET_CARTESIAN: mse(recons_jet, target_jet).cpu().detach().numpy(),
             JET_POLAR: mse(recons_jet, target_jet).cpu().detach().numpy(),
             # Lorentz invariant score
-            JET_LORENTZ: mse_lorentz(recons_jet, target_jet).cpu().detach().numpy()
+            JET_LORENTZ: mse_lorentz(recons_jet, target_jet).cpu().detach().numpy(),
         }
 
         if include_emd:
@@ -344,10 +404,7 @@ def norm_sq_Lorentz(x: torch.Tensor) -> torch.Tensor:
     return E**2 - px**2 - py**2 - pz**2
 
 
-def mse_lorentz(
-    p: torch.Tensor,
-    q: torch.Tensor
-) -> torch.Tensor:
+def mse_lorentz(p: torch.Tensor, q: torch.Tensor) -> torch.Tensor:
     """MSE Loss using Lorentzian metric.
 
     :param p: Output tensor.
@@ -360,11 +417,8 @@ def mse_lorentz(
     return norm_sq_Lorentz(p - q)
 
 
-def emd_loss(
-    recons_polar: torch.Tensor,
-    target_polar: torch.Tensor
-) -> np.ndarray:
-    """Get EMD loss between reconstructed and target jets 
+def emd_loss(recons_polar: torch.Tensor, target_polar: torch.Tensor) -> np.ndarray:
+    """Get EMD loss between reconstructed and target jets
     in polar coordinates (E, pt, eta, phi) or (pt, eta, phi).
 
     :param recons_polar: Reconstructed jets in polar coordinates.
@@ -377,7 +431,7 @@ def emd_loss(
     """
     if recons_polar.shape != target_polar.shape:
         raise ValueError(
-            f'recons_polar and target must have the same shape. '
+            f"recons_polar and target must have the same shape. "
             f"Got: {recons_polar.shape=} and {target_polar.shape=}."
         )
 
@@ -387,7 +441,9 @@ def emd_loss(
         if q_polar.shape[-1] == 4:
             q_polar = q_polar[..., 1:]
         # (pT, eta, phi): https://energyflow.network/docs/emd/#emd
-        return energyflow.emd.emd(p_polar.cpu().detach().numpy(), q_polar.cpu().detach().numpy())
+        return energyflow.emd.emd(
+            p_polar.cpu().detach().numpy(), q_polar.cpu().detach().numpy()
+        )
 
     losses = []
     for i in range(target_polar.shape[0]):
@@ -396,19 +452,11 @@ def emd_loss(
     return np.array(losses)
 
 
-def mse(
-    p: torch.Tensor,
-    q: torch.Tensor,
-    dim: int = -1
-) -> torch.Tensor:
-    return ((p - q)**2).sum(dim=dim)
+def mse(p: torch.Tensor, q: torch.Tensor, dim: int = -1) -> torch.Tensor:
+    return ((p - q) ** 2).sum(dim=dim)
 
 
-def chamfer(
-    p: torch.Tensor,
-    q: torch.Tensor,
-    batch_size: int = -1
-) -> torch.Tensor:
+def chamfer(p: torch.Tensor, q: torch.Tensor, batch_size: int = -1) -> torch.Tensor:
     """Compute the chamfer distance between two batched data.
 
     :param p: First tensor.
@@ -416,7 +464,7 @@ def chamfer(
     :param q: Second tensor.
     :type q: torch.Tensor
     :param batch_size: Batch size, defaults to -1.
-    If it is a non-positive number or None, then the data will no be batched. 
+    If it is a non-positive number or None, then the data will no be batched.
     :type batch_size: int, optional
     :return: _description_
     :rtype: torch.Tensor
@@ -430,12 +478,7 @@ def chamfer(
             # call non-batched version
             p = p.to(DEVICE)
             q = q.to(DEVICE)
-            chamfer_dists.append(
-                chamfer(
-                    p, q, 
-                    batch_size=-1
-                ).detach().cpu()
-            )
+            chamfer_dists.append(chamfer(p, q, batch_size=-1).detach().cpu())
         return torch.cat(chamfer_dists, dim=0)
     else:
         # non-batched version
@@ -447,9 +490,7 @@ def chamfer(
 
 
 def chamfer_lorentz(
-    p: torch.Tensor,
-    q: torch.Tensor,
-    batch_size: int = -1
+    p: torch.Tensor, q: torch.Tensor, batch_size: int = -1
 ) -> torch.Tensor:
     if (batch_size is not None) and (batch_size > 0):
         # batched version
@@ -460,12 +501,7 @@ def chamfer_lorentz(
             # call non-batched version
             p = p.to(DEVICE)
             q = q.to(DEVICE)
-            chamfer_dists.append(
-                chamfer_lorentz(
-                    p, q, 
-                    batch_size=-1
-                ).detach().cpu()
-            )
+            chamfer_dists.append(chamfer_lorentz(p, q, batch_size=-1).detach().cpu())
         return torch.cat(chamfer_dists, dim=0)
     else:
         diffs = torch.unsqueeze(p, -2) - torch.unsqueeze(q, -3)
@@ -473,12 +509,9 @@ def chamfer_lorentz(
         min_dist_pq = torch.min(dist, dim=-1).values
         min_dist_qp = torch.min(dist, dim=-2).values
         return min_dist_pq + min_dist_qp
-    
-def hungarian(
-    p: torch.Tensor, 
-    q: torch.Tensor, 
-    batch_size: int = -1
-) -> torch.Tensor:
+
+
+def hungarian(p: torch.Tensor, q: torch.Tensor, batch_size: int = -1) -> torch.Tensor:
     """Get the Hungarian distance between two batched data.
 
     :param p: Reconstructed jets.
@@ -500,32 +533,25 @@ def hungarian(
             # call non-batched version
             p = p.to(DEVICE)
             q = q.to(DEVICE)
-            hungarian_distances.append(
-                hungarian(
-                    p, q, 
-                    batch_size=-1
-                ).detach().cpu()
-            )
+            hungarian_distances.append(hungarian(p, q, batch_size=-1).detach().cpu())
         return torch.cat(hungarian_distances, dim=0)
     else:
         # non-batched version (base case)
         cost = torch.cdist(p, q).cpu().detach().numpy()
         matching = [
-            optimize.linear_sum_assignment(cost[i])[1] 
-            for i in range(len(cost))
+            optimize.linear_sum_assignment(cost[i])[1] for i in range(len(cost))
         ]
 
         p_shuffle = torch.zeros(p.shape).to(p.device).to(p.dtype)
         for i in range(len(matching)):
             p_shuffle[i] = p[i, matching[i]]
         return mse(p_shuffle, q)
-    
+
+
 def hungarian_lorentz(
-    p: torch.Tensor,
-    q: torch.Tensor,
-    batch_size: int = -1
+    p: torch.Tensor, q: torch.Tensor, batch_size: int = -1
 ) -> torch.Tensor:
-    """Get the Hungarian distance between two batched data 
+    """Get the Hungarian distance between two batched data
     in terms of the Minkowskian metric diag(+, -, -, -).
 
     :param p: Reconstructed jets.
@@ -549,9 +575,7 @@ def hungarian_lorentz(
             p = p.to(DEVICE)
             q = q.to(DEVICE)
             hungarian_distances.append(
-                hungarian_lorentz(
-                    p, q, batch_size=-1
-                ).detach().cpu()
+                hungarian_lorentz(p, q, batch_size=-1).detach().cpu()
             )
         return torch.cat(hungarian_distances, dim=0)
     else:
@@ -559,8 +583,7 @@ def hungarian_lorentz(
         diffs = torch.unsqueeze(p, -2) - torch.unsqueeze(q, -3)
         cost = norm_sq_Lorentz(diffs).cpu().detach().numpy()
         matching = [
-            optimize.linear_sum_assignment(cost[i])[1] 
-            for i in range(len(cost))
+            optimize.linear_sum_assignment(cost[i])[1] for i in range(len(cost))
         ]
 
         p_shuffle = torch.zeros(p.shape).to(p.device).to(p.dtype)
@@ -570,11 +593,10 @@ def hungarian_lorentz(
 
 
 def normalize_particle_features(
-    p: torch.Tensor,
-    eps: float = EPS_DEFAULT
+    p: torch.Tensor, eps: float = EPS_DEFAULT
 ) -> torch.Tensor:
-    """Normalize by dividing the largest ..math::`p_i` 
-    (in terms of the absolute value) in the jet 
+    """Normalize by dividing the largest ..math::`p_i`
+    (in terms of the absolute value) in the jet
     for each ..math::`i` (where ..math::`i \in \{ 0, 1, 2, 3 \}`)
 
     :param p: Particle features.
@@ -589,10 +611,7 @@ def normalize_particle_features(
     return p / (norm_factor + eps)
 
 
-def get_p4_polar(
-    p: torch.Tensor,
-    eps: float = EPS_DEFAULT
-) -> torch.Tensor:
+def get_p4_polar(p: torch.Tensor, eps: float = EPS_DEFAULT) -> torch.Tensor:
     """(E, px, py, pz) -> (E, pT, eta, phi)"""
     if p.shape[-1] == 4:
         E, px, py, pz = p.unbind(-1)
@@ -601,14 +620,15 @@ def get_p4_polar(
         E = torch.sqrt(px**2 + py**2 + pz**2)
     else:
         ValueError(f"p must be a 3- or 4-vector. Got: {p.shape=}")
-    
-    pT = (px**2 + py**2)**0.5
+
+    pT = (px**2 + py**2) ** 0.5
     try:
         eta = torch.arcsinh(pz / (pT + eps))
     except AttributeError:
         eta = arcsinh(pz / (pT + eps))
-    phi = torch.atan2(py+eps, px+eps)
+    phi = torch.atan2(py + eps, px + eps)
     return torch.stack((E, pT, eta, phi), dim=-1)
+
 
 def get_p4_cartesian(p: torch.Tensor) -> torch.Tensor:
     """(E, pT, eta, phi) -> (E, px, py, pz)"""
@@ -619,7 +639,7 @@ def get_p4_cartesian(p: torch.Tensor) -> torch.Tensor:
         E = pT * torch.cosh(eta)
     else:
         ValueError(f"p must be a 3- or 4-vector. Got: {p.shape=}")
-    
+
     px = pT * torch.cos(phi)
     py = pT * torch.sin(phi)
     pz = pT * torch.sinh(eta)
@@ -634,9 +654,7 @@ def get_jet_p4(p: torch.Tensor) -> torch.Tensor:
 
 
 def get_polar_rel(
-    p: torch.Tensor,
-    jet_p: torch.Tensor,
-    eps: float = EPS_DEFAULT
+    p: torch.Tensor, jet_p: torch.Tensor, eps: float = EPS_DEFAULT
 ) -> torch.Tensor:
     """Get polar coordinates relative to the jet.
 
@@ -653,8 +671,7 @@ def get_polar_rel(
         pt, eta, phi = p.unbind(-1)
     else:
         raise ValueError(
-            f"Invalid shape for p: {p.shape}. "
-            "Feature dimension must be 3 or 4."
+            f"Invalid shape for p: {p.shape}. " "Feature dimension must be 3 or 4."
         )
 
     if jet_p.shape[-1] == 4:
@@ -671,17 +688,15 @@ def get_polar_rel(
     eta_norm = eta - jet_eta.unsqueeze(-1)
     phi_norm = phi - jet_phi.unsqueeze(-1)
     # normalize to [-pi, pi)
-    phi_norm = (phi_norm + np.pi) % (2 * np.pi) - np.pi  
+    phi_norm = (phi_norm + np.pi) % (2 * np.pi) - np.pi
     return torch.stack((pt_norm, eta_norm, phi_norm), dim=-1)
+
 
 class DistanceDataset(Dataset):
     def __init__(self, x: torch.Tensor, y: torch.Tensor) -> None:
         super().__init__()
         if x.shape != y.shape:
-            raise ValueError(
-                f"x and y shapes do not match: "
-                f"{x.shape} != {y.shape}"
-            )
+            raise ValueError(f"x and y shapes do not match: " f"{x.shape} != {y.shape}")
 
         self.x = x
         self.y = y

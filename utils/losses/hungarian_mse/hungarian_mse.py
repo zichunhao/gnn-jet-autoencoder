@@ -14,7 +14,9 @@ class HungarianMSELoss(nn.Module):
         self.abs_coord = abs_coord
         self.polar_coord = polar_coord
         self.device = recons.device
-        return jet_mse_loss(recons, target, abs_coord=abs_coord, polar_coord=polar_coord)
+        return jet_mse_loss(
+            recons, target, abs_coord=abs_coord, polar_coord=polar_coord
+        )
 
 
 def jet_mse_loss(recons, target, abs_coord=True, polar_coord=False):
@@ -40,7 +42,9 @@ def jet_mse_loss(recons, target, abs_coord=True, polar_coord=False):
     -------
     The particle-wise MSE loss after finding the match bewteen target and reconstructed/generated jet.
     """
-    recons, target = preprocess(recons, target, abs_coord=abs_coord, polar_coord=polar_coord)
+    recons, target = preprocess(
+        recons, target, abs_coord=abs_coord, polar_coord=polar_coord
+    )
     recons._requires_grad = True
     device = recons.device
 

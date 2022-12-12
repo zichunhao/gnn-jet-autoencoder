@@ -4,7 +4,6 @@ from .distance_sq import pairwise_distance_sq, normsq
 
 
 class ChamferLoss(nn.Module):
-
     def __init__(self, loss_norm_choice):
         super(ChamferLoss, self).__init__()
         self.loss_norm_choice = loss_norm_choice
@@ -25,8 +24,7 @@ class ChamferLoss(nn.Module):
         self.device = p.device
 
         dist = pairwise_distance_sq(
-            p, q, norm_choice=self.loss_norm_choice, 
-            device=self.device
+            p, q, norm_choice=self.loss_norm_choice, device=self.device
         )
 
         min_dist_pq = torch.min(dist, dim=-1)
@@ -39,7 +37,6 @@ class ChamferLoss(nn.Module):
         if jet_features_weight != 0:
             jet_p = torch.sum(p, dim=-2).to(self.device)
             jet_q = torch.sum(q, dim=-2).to(self.device)
-            jet_loss = normsq(
-                jet_p - jet_q, norm_choice=self.loss_norm_choice).sum()
+            jet_loss = normsq(jet_p - jet_q, norm_choice=self.loss_norm_choice).sum()
             chamfer_loss += jet_features_weight * jet_loss
         return jet_loss
