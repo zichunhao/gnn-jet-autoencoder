@@ -1,5 +1,9 @@
-# GNN Jet Autoencoder
-A graph autoencoder (GNNAE) for jets in particle physics implemented in PyTorch.
+# Graph Neural Network Autoencoders Autoencoder for Jets
+[![DOI](https://zenodo.org/badge/518371541.svg)](https://zenodo.org/badge/latestdoi/518371541)
+
+# Overview
+
+A graph autoencoder (GNNAE) for jets in particle physics implemented in PyTorch, mainly used as a baseline for [LGAE](https://github.com/zichunhao/lgn-autoencoder)
 
 ## Data
 To download data:
