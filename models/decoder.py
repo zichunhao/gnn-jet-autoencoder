@@ -128,7 +128,7 @@ class Decoder(nn.Module):
         """Prepare input for the graph decoder."""
         x = x.to(self.device).to(self.dtype)
         if self.latent_map.lower().replace(" ", "_") in LOCAL_MIX:
-            x = x.view(-1, self.num_nodes, self.node_sizes[0][0])
+            x = x.view(-1, self.num_nodes, self.latent_node_size)  # (B, N, D)
             x = self.linear(x)  # map to input node size
         else:
             x = self.linear(x)  # map to input node size
