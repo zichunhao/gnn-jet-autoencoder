@@ -138,10 +138,10 @@ class Encoder(nn.Module):
         bs = x.shape[0]
         x = x.to(self.device).to(self.dtype)
         x = self.encoder(x, metric=metric)
-        x = self.__aggregate(x, bs, self.latent_map)
+        x = self.__aggregate(x, bs)
         return x
 
-    def __aggregate(self, x, bs, latent_map):
+    def __aggregate(self, x, bs):
         latent_map = self.latent_map.replace(" ", "_").lower()
         # aggregation to latent space
         if latent_map == "mean":
@@ -164,7 +164,8 @@ class Encoder(nn.Module):
             logging.warning(
                 f"Unknown latent map {self.latent_map} in Encoder. Using mean."
             )
-            x = self.__aggregate(x, bs, latent_map="mean")
+            self.latent_map = "mean"
+            x = torch.mean(x, dim=-2)
 
         logging.debug(f"Encoder output shape: {x.shape}")
         return x
