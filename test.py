@@ -133,10 +133,14 @@ def test(args):
         sig_scores = {
             k: np.concatenate([v[k] for v in sig_scores_list], axis=0) for k in keys
         }
+        scores_dict = {}
         # signals and backgrounds
-        scores_dict = {
-            k: np.concatenate([sig_scores[k], bkg_scores[k]]) for k in sig_scores.keys()
-        }
+        for k in sig_scores.keys():
+            try:
+                scores_dict[k] = np.concatenate([sig_scores[k], bkg_scores[k]])
+            except KeyError:
+                # possible error in 'emd'
+                pass
         true_labels = np.concatenate(
             [
                 np.ones_like(sig_scores[list(sig_scores.keys())[0]]),
