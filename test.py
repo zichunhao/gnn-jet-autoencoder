@@ -129,6 +129,7 @@ def test(args):
         keys = sig_scores_list[0].keys()
         for sig_l in sig_scores_list:
             keys = keys & sig_l.keys()
+        logging.info(keys)
         sig_scores = {
             k: np.concatenate([v[k] for v in sig_scores_list], axis=0) for k in keys
         }
@@ -138,8 +139,8 @@ def test(args):
         }
         true_labels = np.concatenate(
             [
-                np.ones_like(sig_scores[list(keys)]),
-                -np.ones_like(bkg_scores[list(keys)]),
+                np.ones_like(sig_scores[list(sig_scores.keys())[0]]),
+                -np.ones_like(bkg_scores[list(sig_scores.keys())[0]]),
             ]
         )
         get_ROC_AUC(scores_dict, true_labels, save_path=path_ad)
