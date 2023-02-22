@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Optional, Union
 import torch
 import torch.nn as nn
 import logging
@@ -22,8 +22,8 @@ class Encoder(nn.Module):
         dropout: float = 0.0,
         batch_norm: bool = False,
         latent_map: str = "global mix",
-        device: torch.device = None,
-        dtype: torch.dtype = None,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
     ):
         """GNN encoder built on `GraphNet`
 

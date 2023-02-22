@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Optional, Union
 import torch
 import torch.nn as nn
 import logging
@@ -22,8 +22,8 @@ class Decoder(nn.Module):
         batch_norm: int = False,
         latent_map: str = "mix",
         normalize_output: bool = False,
-        device: torch.device = None,
-        dtype: torch.dtype = None,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
     ):
         """GNN decoder built on `GraphNet`
 

@@ -31,7 +31,6 @@ def train(
     is_train: bool = True,
     device: Optional[torch.device] = None,
 ):
-
     if is_train:
         assert (optimizer_encoder is not None) and (
             optimizer_decoder is not None
@@ -158,7 +157,6 @@ def train_loop(
     outpath: Union[Path, str],
     device: torch.device = None,
 ) -> int:
-
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

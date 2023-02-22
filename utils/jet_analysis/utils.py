@@ -442,7 +442,6 @@ def get_recons_err_ranges(args):
 
 
 def _get_particle_recons_ranges(args):
-
     rel_err_cartesian = tuple(
         [
             np.linspace(

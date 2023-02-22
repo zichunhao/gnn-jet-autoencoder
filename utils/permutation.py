@@ -146,7 +146,6 @@ def get_dev_summary(
     verbose: bool = False,
     save_path: Optional[Union[str, Path]] = None,
 ) -> Dict[str, Union[torch.Tensor, float]]:
-
     summary = {
         "mean": dev.mean().item(),
         "median": dev.median().item(),

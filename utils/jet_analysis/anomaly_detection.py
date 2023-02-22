@@ -130,7 +130,6 @@ def plot_roc_curves(
     ax.set_yscale("log")
 
     for kind, auc in aucs:
-
         fpr, tpr, thresholds = roc_curves[kind]
         intercepts = dict()
         ax.plot(tpr, fpr, label=f"{kind} (AUC: {auc:.5f})")

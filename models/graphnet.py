@@ -1,4 +1,5 @@
-from typing import Callable, Iterable, List, Union
+import math
+from typing import Callable, Iterable, List, Optional, Union
 import warnings
 import torch
 import torch.nn as nn
@@ -17,11 +18,11 @@ class GraphNet(nn.Module):
         node_sizes: List[List[int]],
         edge_sizes: List[List[int]],
         num_mps: int,
-        alphas: List[int] = 0.1,
+        alphas: Union[List[float], float] = 0.1,
         dropout: float = 0.0,
         batch_norm: bool = False,
-        device: torch.device = None,
-        dtype: torch.dtype = None,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
     ):
         """A fully connected message-passing standard graph neural network
         with the distance as edge features.
@@ -44,7 +45,7 @@ class GraphNet(nn.Module):
         in each iteration of message passing., defaults to 0.1.
         :param dropout: Dropout rate, defaults to 0.0.
         :type dropout: float
-        :type alphas: List[int], optional
+        :type alphas: Union[List[float], float], optional
         :param batch_norm: Whether to use batch normalization, defaults to False
         :type batch_norm: bool, optional
         :param device: Device of the model, defaults to None.
