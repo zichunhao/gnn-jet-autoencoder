@@ -376,19 +376,25 @@ def get_stats(res, bins):
 
     # outlier insensitive measures
     med = np.median(res)
+    # interquartile range
     quartile_first = np.quantile(res, 0.25)
     quartile_third = np.quantile(res, 0.75)
+    iqr = quartile_third - quartile_first
+    # interdecile range
+    idr = np.quantile(res, 0.9) - np.quantile(res, 0.1)
     try:
         mad = stats.median_absolute_deviation(res)
     except AttributeError:
-        # for scipy >= 1.9.0
+        # older versions of scipy
         mad = stats.median_abs_deviation(res)
-    # interdecile range
-    idr = np.quantile(res, 0.9) - np.quantile(res, 0.1)
+    
+    abs_sum = np.sum(np.abs(res))
+    abs_sum_within_iqr = np.sum(np.abs(res[np.abs(res) < iqr]))
+    abs_sum_within_idr = np.sum(np.abs(res[np.abs(res) < idr]))
 
     return {
         "median": med,
-        "IQR": quartile_third - quartile_first,
+        "IQR": iqr,
         "first_quartile": quartile_first,
         "third_quartile": quartile_third,
         "IDR": idr,
@@ -401,8 +407,10 @@ def get_stats(res, bins):
         "skew": skew,
         "kurtosis": kurtosis,
         "FWHM": find_fwhm(res, bins),
+        "abs_sum": abs_sum,
+        "abs_sum_within_iqr": abs_sum_within_iqr,
+        "abs_sum_within_idr": abs_sum_within_idr,
     }
-
 
 def get_jet_name(jet_type):
     if jet_type == "g":
