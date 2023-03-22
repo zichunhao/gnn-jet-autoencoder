@@ -387,10 +387,21 @@ def get_stats(res, bins):
     except AttributeError:
         # older versions of scipy
         mad = stats.median_abs_deviation(res)
-    
-    abs_sum = np.sum(np.abs(res))
-    abs_sum_within_iqr = np.sum(np.abs(res[np.abs(res) < iqr]))
-    abs_sum_within_idr = np.sum(np.abs(res[np.abs(res) < idr]))
+
+    LARGE_NUMBER = 1e32
+    abs_mean = np.mean(np.abs(res))
+    res_less_than_iqr = res[np.abs(res) < iqr]
+    abs_mean_within_iqr = (
+        np.mean(np.abs(res_less_than_iqr))
+        if len(res_less_than_iqr) > 0
+        else LARGE_NUMBER
+    )
+    res_less_than_idr = res[np.abs(res) < idr]
+    abs_mean_within_idr = (
+        np.mean(np.abs(res_less_than_idr))
+        if len(res_less_than_idr) > 0
+        else LARGE_NUMBER
+    )
 
     return {
         "median": med,
@@ -407,10 +418,11 @@ def get_stats(res, bins):
         "skew": skew,
         "kurtosis": kurtosis,
         "FWHM": find_fwhm(res, bins),
-        "abs_sum": abs_sum,
-        "abs_sum_within_iqr": abs_sum_within_iqr,
-        "abs_sum_within_idr": abs_sum_within_idr,
+        "abs_mean": abs_mean,
+        "abs_mean_within_iqr": abs_mean_within_iqr,
+        "abs_mean_within_idr": abs_mean_within_idr,
     }
+
 
 def get_jet_name(jet_type):
     if jet_type == "g":
