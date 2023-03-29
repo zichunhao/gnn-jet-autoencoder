@@ -185,6 +185,7 @@ def initialize_dataloader(
     batch_size: int,
     train_fraction: float = 0.65,
     vec_dims: int = 3,
+    train_set_portion: Union[float, int] = -1,
 ) -> Tuple[DataLoader, DataLoader]:
     logging.info(f"Loading from {paths}")
     if isinstance(paths, Iterable):
@@ -207,8 +208,8 @@ def initialize_dataloader(
         data_valid = data[split_idx:]
 
     # initialize datasets
-    dataset_train = JetMomentaDataset(data_train, vec_dims=vec_dims)
-    dataset_valid = JetMomentaDataset(data_valid, vec_dims=vec_dims)
+    dataset_train = JetMomentaDataset(data_train, vec_dims=vec_dims, num_pts=train_set_portion)
+    dataset_valid = JetMomentaDataset(data_valid, vec_dims=vec_dims, num_pts=train_set_portion)
 
     # initialize data loaders
     loader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True)
@@ -236,7 +237,7 @@ def initialize_test_dataloader(
         data = torch.cat(data_test_list, dim=0)
     else:
         data = torch.load(paths)
-    jet_data = JetMomentaDataset(data, vec_dims=vec_dims)
+    jet_data = JetMomentaDataset(data, vec_dims=vec_dims, num_pts=-1)
 
     logging.info(
         "Data for testing loaded. " f"Number of testing samples: {len(jet_data)}."

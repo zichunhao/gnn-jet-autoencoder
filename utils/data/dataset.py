@@ -1,3 +1,4 @@
+import logging
 from typing import Union
 import numpy as np
 import torch
@@ -14,6 +15,7 @@ class JetMomentaDataset(Dataset):
         data: Union[torch.Tensor, np.ndarray], 
         vec_dims: int = 3,
         polar_coord: bool = True,
+        num_pts: Union[int, float] = -1,
     ):
         # input checks
         if isinstance(data, np.ndarray):
@@ -28,6 +30,23 @@ class JetMomentaDataset(Dataset):
 
         if vec_dims not in (3, 4):
             raise ValueError(f"vec_dims must be 3 or 4. Found: {vec_dims}")
+        
+        # truncate data if we want to use a subset of points to train/validate/test
+        total_pts = data.shape[0]
+        if num_pts < 0:
+            logging.info(f"{num_pts=}. Using all points.")
+            num_pts = total_pts
+        elif num_pts <= 1:
+            num_pts = int(num_pts * total_pts)
+            logging.info(f"Using {num_pts} out of {total_pts} points.")
+        elif num_pts > total_pts:
+            logging.error(f"num_pts must be less than total number of points. Found: {num_pts} > {total_pts}. Using all points.")
+            num_pts = total_pts
+        else:
+            logging.info(f"Using {num_pts} out of {total_pts} points.")
+            num_pts = int(num_pts)
+            
+        data = data[:num_pts]
 
         if data.shape[-1] == 3:
             if vec_dims == 4:

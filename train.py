@@ -38,6 +38,7 @@ def main(args):
         batch_size=args.batch_size,
         vec_dims=args.vec_dims,
         train_fraction=args.train_fraction,
+        train_set_portion=args.train_set_portion,
     )
     test_loader = initialize_test_dataloader(
         paths=args.test_data_paths,

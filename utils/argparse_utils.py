@@ -217,6 +217,16 @@ def parse_training_settings(parser: argparse.ArgumentParser) -> argparse.Argumen
         help="Data type to which the model is initialized. Options: ('float', 'float64', 'double'). Default: torch.float64",
     )
     parser.add_argument(
+        "--train-set-portion",
+        type=float,
+        default=-1,
+        metavar="",
+        help="Portion of the training-validation set to use. "
+        "Default: -1, which means using the entire training set. "
+        "If the value is in (0, 1], the number will be interpreted as the fraction of the training set to use. "
+        "If the value is in (1, infinity), the number will be interpreted as the number of samples to use.",
+    )
+    parser.add_argument(
         "--lr",
         type=float,
         default=1e-5,
