@@ -377,7 +377,20 @@ def get_stats(res, bins):
     # outlier insensitive measures
     med = np.median(res)
     # interquartile range
-    quartile_first = np.quantile(res, 0.25)
+    try:
+        quartile_first = np.quantile(res, 0.25)
+    except IndexError:
+        return {
+            "median": med,
+            "mean": mean,
+            "max": max_val,
+            "min": min_val,
+            "abs_min": abs_min,
+            "std_dev": std_dev,
+            "skew": skew,
+            "kurtosis": kurtosis,
+            "FWHM": find_fwhm(res, bins),
+        }
     quartile_third = np.quantile(res, 0.75)
     iqr = quartile_third - quartile_first
     # interdecile range
