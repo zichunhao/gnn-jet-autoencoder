@@ -28,6 +28,14 @@ def test(args):
     perm_result = permutation_test(test_loader, verbose=False)
     logging.info(f"Permutation invariance: {perm_result['invariance']}")
     logging.info(f"Permutation equivariance: {perm_result['equivariance']}")
+    
+    path_test_info = Path(args.load_path) / "test_info.pt"
+    if path_test_info.exists():
+        test_info = torch.load(path_test_info)
+        test_info.append(args.load_epoch)
+    else:
+        test_info = [args.load_epoch]
+    torch.save(test_info, path_test_info)
 
     _, recons, target, latent = validate(
         args,
