@@ -31,6 +31,10 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 def main(args):
     logging.info(f"{args=}")
+    
+    if args.seed is not None and args.seed >= 0:
+        logging.info(f"Setting random seed to {args.seed}")
+        torch.manual_seed(args.seed)
 
     # Loading data and initializing models
     train_loader, valid_loader = initialize_dataloader(
@@ -113,6 +117,9 @@ def main(args):
 
 def setup_argparse() -> Namespace:
     parser = argparse.ArgumentParser(description="GNN autoencoder training options")
+    parser.add_argument(
+        '--seed', type=int, default=-1, help='Random seed for reproducibility. Default: -1 (no seed)'
+    )
     parser = parse_data_settings(parser)
     parser = parse_training_settings(parser)
     parser = parse_eval_settings(parser)
