@@ -46,7 +46,8 @@ class JetMomentaDataset(Dataset):
             logging.info(f"Using {num_pts} out of {total_pts} points.")
             num_pts = int(num_pts)
             
-        data = data[:num_pts]
+        # data = data[:num_pts]
+        data = data[np.random.choice(total_pts, num_pts, replace=False)]
 
         if data.shape[-1] == 3:
             if vec_dims == 4:
