@@ -5,6 +5,7 @@ from pathlib import Path
 import torch
 import glob
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def get_model_folder(args):
@@ -113,6 +114,8 @@ def plot_eval_results(args, data, data_name, outpath, start=None):
             valid = valid.detach().cpu().numpy()
         plt.plot(x, train, label="Train", alpha=0.8)
         plt.plot(x, valid, label="Valid", alpha=0.8)
+        if (np.array(train) > 0).all() and (np.array(valid) > 0).all():
+            plt.yscale("log")
         plt.legend()
     # only one type of data (e.g. dt)
     else:
